@@ -74,6 +74,45 @@ public sealed class WeatherRepository : IWeatherRepository
             cancellationToken);
     }
 
+    public Task<WeatherInfo?> GetByCityAndDateAsync(
+        string cityName,
+        DateOnly date,
+        CancellationToken cancellationToken = default)
+    {
+        var pattern = EscapeLikePattern(cityName);
+
+        return _dbContext.WeatherInfos
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                weather => weather.WeatherDate == date
+                    && EF.Functions.ILike(
+                        weather.CityName,
+                        pattern,
+                        LikeEscapeCharacter),
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<WeatherInfo>> GetByCityAndDateRangeAsync(
+        string cityName,
+        DateOnly startDate,
+        DateOnly endDate,
+        CancellationToken cancellationToken = default)
+    {
+        var pattern = EscapeLikePattern(cityName);
+
+        return await _dbContext.WeatherInfos
+            .AsNoTracking()
+            .Where(weather => weather.WeatherDate >= startDate
+                && weather.WeatherDate <= endDate
+                && EF.Functions.ILike(
+                    weather.CityName,
+                    pattern,
+                    LikeEscapeCharacter))
+            .OrderBy(weather => weather.WeatherDate)
+            .ThenBy(weather => weather.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<bool> ExistsForCityAndDateAsync(
         string cityName,
         DateOnly weatherDate,

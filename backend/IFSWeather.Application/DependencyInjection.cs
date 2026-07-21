@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<IWeatherManagementService, WeatherManagementService>();
+        services.AddScoped<IUserWeatherService, UserWeatherService>();
 
         return services;
     }
