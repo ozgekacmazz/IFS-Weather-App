@@ -8,6 +8,8 @@ using IFSWeather.Application.Profile.Interfaces;
 using IFSWeather.Application.Profile.Services;
 using IFSWeather.Application.Weather.Interfaces;
 using IFSWeather.Application.Weather.Services;
+using IFSWeather.Application.Weather.External.Interfaces;
+using IFSWeather.Application.Weather.External.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace IFSWeather.Application;
@@ -22,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IAdminUserService, AdminUserService>();
         services.AddScoped<IWeatherManagementService, WeatherManagementService>();
         services.AddScoped<IUserWeatherService, UserWeatherService>();
+        services.AddScoped<IExternalWeatherService, ExternalWeatherService>();
 
         return services;
     }

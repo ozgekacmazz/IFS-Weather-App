@@ -4,6 +4,8 @@ using IFSWeather.Infrastructure.Authentication;
 using IFSWeather.Infrastructure.Persistence;
 using IFSWeather.Infrastructure.Weather;
 using IFSWeather.Application.Weather.Interfaces;
+using IFSWeather.Application.Weather.External.Interfaces;
+using IFSWeather.Infrastructure.Weather.External;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,6 +48,38 @@ public static class DependencyInjection
                 settings => settings.SecretKey.Length >= 32,
                 "JWT secret key must contain at least 32 characters.")
             .ValidateOnStart();
+
+        services.AddOptions<WeatherApiOptions>()
+            .Bind(configuration.GetSection(WeatherApiOptions.SectionName))
+            .Validate(
+                options => Uri.TryCreate(
+                    options.BaseUrl,
+                    UriKind.Absolute,
+                    out var baseUri)
+                    && baseUri.Scheme == Uri.UriSchemeHttps,
+                "Weather API base URL must be an absolute HTTPS URI.")
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.ApiKey),
+                "Weather API key must be configured.")
+            .Validate(
+                options => options.TimeoutSeconds is >= 1 and <= 30,
+                "Weather API timeout must be between 1 and 30 seconds.")
+            .Validate(
+                options => options.MaximumForecastDays is >= 1 and <= 14,
+                "Weather API maximum forecast days must be between 1 and 14.")
+            .ValidateOnStart();
+
+        services.AddHttpClient<IExternalWeatherProvider, WeatherApiProvider>(
+                (serviceProvider, httpClient) =>
+                {
+                    var options = serviceProvider
+                        .GetRequiredService<Microsoft.Extensions.Options.IOptions<WeatherApiOptions>>()
+                        .Value;
+
+                    httpClient.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
+                    httpClient.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+                })
+            .RemoveAllLoggers();
 
         return services;
     }
