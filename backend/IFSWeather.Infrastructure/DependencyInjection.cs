@@ -1,3 +1,5 @@
+using IFSWeather.Application.Authentication.Interfaces;
+using IFSWeather.Infrastructure.Authentication;
 using IFSWeather.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -17,6 +19,8 @@ public static class DependencyInjection
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
+
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
 
         return services;
     }
