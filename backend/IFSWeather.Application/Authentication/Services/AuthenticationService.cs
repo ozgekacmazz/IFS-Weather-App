@@ -2,6 +2,7 @@ using FluentValidation;
 using IFSWeather.Application.Authentication.DTOs;
 using IFSWeather.Application.Authentication.Exceptions;
 using IFSWeather.Application.Authentication.Interfaces;
+using IFSWeather.Application.Authentication.Models;
 using IFSWeather.Domain.Entities;
 using IFSWeather.Domain.Enums;
 
@@ -11,17 +12,20 @@ public sealed class AuthenticationService : IAuthenticationService
 {
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly ITokenService _tokenService;
     private readonly IValidator<RegisterRequest> _registerRequestValidator;
     private readonly IValidator<LoginRequest> _loginRequestValidator;
 
     public AuthenticationService(
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
+        ITokenService tokenService,
         IValidator<RegisterRequest> registerRequestValidator,
         IValidator<LoginRequest> loginRequestValidator)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
+        _tokenService = tokenService;
         _registerRequestValidator = registerRequestValidator;
         _loginRequestValidator = loginRequestValidator;
     }
@@ -75,7 +79,9 @@ public sealed class AuthenticationService : IAuthenticationService
         await _userRepository.AddAsync(user, cancellationToken);
         await _userRepository.SaveChangesAsync(cancellationToken);
 
-        return CreateResponse(user);
+        var token = await _tokenService.GenerateTokenAsync(user, cancellationToken);
+
+        return CreateResponse(user, token);
     }
 
     public async Task<AuthenticationResponse> LoginAsync(
@@ -113,18 +119,20 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new InvalidCredentialsException();
         }
 
-        return CreateResponse(user);
+        var token = await _tokenService.GenerateTokenAsync(user, cancellationToken);
+
+        return CreateResponse(user, token);
     }
 
-    private static AuthenticationResponse CreateResponse(User user)
+    private static AuthenticationResponse CreateResponse(User user, TokenResult token)
     {
         return new AuthenticationResponse(
             user.Id,
             user.Username,
             user.Email,
             user.Role,
-            null,
-            null);
+            token.AccessToken,
+            token.ExpiresAtUtc);
     }
 
     private static string? NormalizeOptionalValue(string? value)
