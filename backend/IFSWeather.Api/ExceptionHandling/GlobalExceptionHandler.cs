@@ -2,6 +2,7 @@ using FluentValidation;
 using IFSWeather.Application.Admin.Users.Exceptions;
 using IFSWeather.Application.Authentication.Exceptions;
 using IFSWeather.Application.Profile.Exceptions;
+using IFSWeather.Application.Weather.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -67,6 +68,16 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 StatusCodes.Status409Conflict,
                 "Status update conflict",
                 "You cannot deactivate your own account."),
+
+            WeatherNotFoundException => CreateProblem(
+                StatusCodes.Status404NotFound,
+                "Weather record not found",
+                "The requested weather record could not be found."),
+
+            WeatherConflictException => CreateProblem(
+                StatusCodes.Status409Conflict,
+                "Weather record conflict",
+                "A weather record already exists for the specified city and date."),
 
             InvalidCredentialsException or InactiveUserException
                 or ProfileUnavailableException => CreateProblem(

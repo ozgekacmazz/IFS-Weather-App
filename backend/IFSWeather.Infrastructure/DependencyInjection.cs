@@ -2,6 +2,8 @@ using IFSWeather.Application.Authentication.Interfaces;
 using IFSWeather.Application.Authentication.Settings;
 using IFSWeather.Infrastructure.Authentication;
 using IFSWeather.Infrastructure.Persistence;
+using IFSWeather.Infrastructure.Weather;
+using IFSWeather.Application.Weather.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ITokenService, JwtTokenService>();
+        services.AddScoped<IWeatherRepository, WeatherRepository>();
 
         services.AddOptions<JwtSettings>()
             .Bind(configuration.GetSection(JwtSettings.SectionName))
