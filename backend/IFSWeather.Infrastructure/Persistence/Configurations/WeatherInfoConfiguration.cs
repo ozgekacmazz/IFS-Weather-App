@@ -7,13 +7,13 @@ namespace IFSWeather.Infrastructure.Persistence.Configurations;
 public sealed class WeatherInfoConfiguration : IEntityTypeConfiguration<WeatherInfo>
 {
     public const string CityDateUniqueIndexName =
-        "IX_WeatherInfos_WeatherDate_NormalizedCityName";
+        "IX_Weather_Info_Tab_WeatherDate_NormalizedCityName";
 
     private const string NormalizedCityNameProperty = "NormalizedCityName";
 
     public void Configure(EntityTypeBuilder<WeatherInfo> builder)
     {
-        builder.ToTable("WeatherInfos");
+        builder.ToTable("Weather_Info_Tab");
 
         builder.HasKey(weather => weather.Id);
 

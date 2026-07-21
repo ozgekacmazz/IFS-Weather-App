@@ -10,5 +10,6 @@ public interface IAuthenticationService
 
     Task<AuthenticationResponse> LoginAsync(
         LoginRequest request,
+        string? ipAddress,
         CancellationToken cancellationToken = default);
 }

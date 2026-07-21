@@ -8,7 +8,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
     {
-        builder.ToTable("Users");
+        builder.ToTable("USER_TAB");
 
         builder.HasKey(user => user.Id);
 
@@ -33,7 +33,11 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired();
 
         builder.Property(user => user.DefaultCity)
+            .HasColumnName("DefaultCityName")
             .HasMaxLength(100);
+
+        builder.Property(user => user.Role)
+            .HasColumnName("UserType");
 
         builder.HasIndex(user => user.Username)
             .IsUnique();

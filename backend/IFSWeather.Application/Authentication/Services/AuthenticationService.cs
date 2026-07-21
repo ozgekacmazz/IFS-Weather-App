@@ -13,6 +13,7 @@ public sealed class AuthenticationService : IAuthenticationService
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
+    private readonly ILoginAuditService _loginAuditService;
     private readonly IValidator<RegisterRequest> _registerRequestValidator;
     private readonly IValidator<LoginRequest> _loginRequestValidator;
 
@@ -20,12 +21,14 @@ public sealed class AuthenticationService : IAuthenticationService
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
+        ILoginAuditService loginAuditService,
         IValidator<RegisterRequest> registerRequestValidator,
         IValidator<LoginRequest> loginRequestValidator)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
+        _loginAuditService = loginAuditService;
         _registerRequestValidator = registerRequestValidator;
         _loginRequestValidator = loginRequestValidator;
     }
@@ -86,6 +89,7 @@ public sealed class AuthenticationService : IAuthenticationService
 
     public async Task<AuthenticationResponse> LoginAsync(
         LoginRequest request,
+        string? ipAddress,
         CancellationToken cancellationToken = default)
     {
         var normalizedRequest = request with
@@ -103,11 +107,23 @@ public sealed class AuthenticationService : IAuthenticationService
 
         if (user is null)
         {
+            await _loginAuditService.RecordAsync(
+                normalizedRequest.UsernameOrEmail,
+                ipAddress,
+                LoginAuditOutcome.Failed,
+                cancellationToken);
+
             throw new InvalidCredentialsException();
         }
 
         if (user.Status is not UserStatus.Active)
         {
+            await _loginAuditService.RecordAsync(
+                user.Username,
+                ipAddress,
+                LoginAuditOutcome.Failed,
+                cancellationToken);
+
             throw new InactiveUserException();
         }
 
@@ -116,10 +132,22 @@ public sealed class AuthenticationService : IAuthenticationService
                 user.PasswordHash,
                 normalizedRequest.Password))
         {
+            await _loginAuditService.RecordAsync(
+                user.Username,
+                ipAddress,
+                LoginAuditOutcome.Failed,
+                cancellationToken);
+
             throw new InvalidCredentialsException();
         }
 
         var token = await _tokenService.GenerateTokenAsync(user, cancellationToken);
+
+        await _loginAuditService.RecordAsync(
+            user.Username,
+            ipAddress,
+            LoginAuditOutcome.Succeeded,
+            cancellationToken);
 
         return CreateResponse(user, token);
     }

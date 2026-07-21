@@ -14,6 +14,8 @@ public class AppDbContext : DbContext
 
     public DbSet<WeatherInfo> WeatherInfos => Set<WeatherInfo>();
 
+    public DbSet<UserLoginLog> UserLoginLogs => Set<UserLoginLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
