@@ -1,5 +1,6 @@
 using FluentValidation;
 using IFSWeather.Application.Authentication.Exceptions;
+using IFSWeather.Application.Profile.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -54,7 +55,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 StatusCodes.Status409Conflict,
                 "Registration conflict",
                 "A user with the same username or email already exists."),
-            InvalidCredentialsException or InactiveUserException => CreateProblem(
+            InvalidCredentialsException or InactiveUserException
+                or ProfileUnavailableException => CreateProblem(
                 StatusCodes.Status401Unauthorized,
                 "Authentication failed",
                 AuthenticationErrorMessage),

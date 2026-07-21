@@ -4,6 +4,10 @@ namespace IFSWeather.Application.Authentication.Interfaces;
 
 public interface IUserRepository
 {
+    Task<User?> GetByIdAsync(
+        int userId,
+        CancellationToken cancellationToken = default);
+
     Task<User?> GetByUsernameOrEmailAsync(
         string value,
         CancellationToken cancellationToken);

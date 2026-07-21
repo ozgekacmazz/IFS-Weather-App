@@ -1,4 +1,5 @@
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 using IFSWeather.Application.Authentication.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
@@ -21,6 +22,8 @@ public static class AuthenticationExtensions
             {
                 var settings = jwtOptions.Value;
 
+                options.MapInboundClaims = false;
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
@@ -32,6 +35,8 @@ public static class AuthenticationExtensions
                     ValidAudience = settings.Audience,
                     ValidateLifetime = true,
                     RequireExpirationTime = true,
+                    NameClaimType = JwtRegisteredClaimNames.UniqueName,
+                    RoleClaimType = "role",
                     ClockSkew = TimeSpan.Zero
                 };
             });
