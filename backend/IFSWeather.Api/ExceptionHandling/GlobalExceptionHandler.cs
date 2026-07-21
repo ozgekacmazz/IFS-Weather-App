@@ -1,4 +1,5 @@
 using FluentValidation;
+using IFSWeather.Application.Admin.Users.Exceptions;
 using IFSWeather.Application.Authentication.Exceptions;
 using IFSWeather.Application.Profile.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
@@ -51,15 +52,28 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         {
             ValidationException validationException => CreateValidationProblem(
                 validationException),
+
             RegistrationConflictException => CreateProblem(
                 StatusCodes.Status409Conflict,
                 "Registration conflict",
                 "A user with the same username or email already exists."),
+
+            AdminUserNotFoundException => CreateProblem(
+                StatusCodes.Status404NotFound,
+                "User not found",
+                "The requested user could not be found."),
+
+            AdminSelfDeactivationException => CreateProblem(
+                StatusCodes.Status409Conflict,
+                "Status update conflict",
+                "You cannot deactivate your own account."),
+
             InvalidCredentialsException or InactiveUserException
                 or ProfileUnavailableException => CreateProblem(
                 StatusCodes.Status401Unauthorized,
                 "Authentication failed",
                 AuthenticationErrorMessage),
+
             _ => CreateProblem(
                 StatusCodes.Status500InternalServerError,
                 "An unexpected error occurred",

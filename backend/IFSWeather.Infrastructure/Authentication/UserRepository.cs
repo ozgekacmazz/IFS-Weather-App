@@ -1,5 +1,6 @@
 using IFSWeather.Application.Authentication.Interfaces;
 using IFSWeather.Domain.Entities;
+using IFSWeather.Domain.Enums;
 using IFSWeather.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +24,51 @@ public sealed class UserRepository : IUserRepository
         return _dbContext.Users
             .AsNoTracking()
             .SingleOrDefaultAsync(user => user.Id == userId, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyList<User> Users, int TotalCount)> GetPagedAsync(
+        int pageNumber,
+        int pageSize,
+        string? search,
+        UserStatus? status,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.Users.AsNoTracking();
+
+        if (search is not null)
+        {
+            var pattern = $"%{EscapeLikePattern(search)}%";
+
+            query = query.Where(user =>
+                EF.Functions.ILike(user.FirstName, pattern, LikeEscapeCharacter)
+                || EF.Functions.ILike(user.LastName, pattern, LikeEscapeCharacter)
+                || EF.Functions.ILike(user.Username, pattern, LikeEscapeCharacter)
+                || EF.Functions.ILike(user.Email, pattern, LikeEscapeCharacter));
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(user => user.Status == status.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var users = await query
+            .OrderByDescending(user => user.CreatedAt)
+            .ThenByDescending(user => user.Id)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (users, totalCount);
+    }
+
+    public Task<User?> GetTrackedByIdAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Users.SingleOrDefaultAsync(
+            user => user.Id == userId,
+            cancellationToken);
     }
 
     public Task<User?> GetByUsernameOrEmailAsync(

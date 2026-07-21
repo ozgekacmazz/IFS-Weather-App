@@ -1,4 +1,6 @@
 using FluentValidation;
+using IFSWeather.Application.Admin.Users.Interfaces;
+using IFSWeather.Application.Admin.Users.Services;
 using IFSWeather.Application.Authentication.Interfaces;
 using IFSWeather.Application.Authentication.Services;
 using IFSWeather.Application.Authentication.Validators;
@@ -15,6 +17,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IAdminUserService, AdminUserService>();
 
         return services;
     }
