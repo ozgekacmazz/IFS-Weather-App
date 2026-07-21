@@ -7,5 +7,5 @@ public sealed record AuthenticationResponse(
     string Username,
     string Email,
     UserRole Role,
-    string AccessToken,
-    DateTime ExpiresAtUtc);
+    string? AccessToken,
+    DateTime? ExpiresAtUtc);
