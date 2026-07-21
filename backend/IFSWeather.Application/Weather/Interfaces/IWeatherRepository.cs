@@ -19,6 +19,17 @@ public interface IWeatherRepository
         int weatherId,
         CancellationToken cancellationToken = default);
 
+    Task<WeatherInfo?> GetByCityAndDateAsync(
+        string cityName,
+        DateOnly date,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<WeatherInfo>> GetByCityAndDateRangeAsync(
+        string cityName,
+        DateOnly startDate,
+        DateOnly endDate,
+        CancellationToken cancellationToken = default);
+
     Task<bool> ExistsForCityAndDateAsync(
         string cityName,
         DateOnly weatherDate,

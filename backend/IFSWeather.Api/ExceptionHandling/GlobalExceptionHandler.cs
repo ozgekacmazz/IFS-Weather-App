@@ -79,6 +79,11 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 "Weather record conflict",
                 "A weather record already exists for the specified city and date."),
 
+            DefaultCityUnavailableException => CreateProblem(
+                StatusCodes.Status400BadRequest,
+                "Default city unavailable",
+                "A default city is required to retrieve weather information."),
+
             InvalidCredentialsException or InactiveUserException
                 or ProfileUnavailableException => CreateProblem(
                 StatusCodes.Status401Unauthorized,
