@@ -27,7 +27,10 @@ public static class DependencyInjection
 
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserLoginLogRepository, UserLoginLogRepository>();
+        services.AddScoped<ILoginAuditService, LoginAuditService>();
         services.AddScoped<ITokenService, JwtTokenService>();
+        services.AddSingleton(TimeProvider.System);
         services.AddScoped<IWeatherRepository, WeatherRepository>();
 
         services.AddOptions<JwtSettings>()
