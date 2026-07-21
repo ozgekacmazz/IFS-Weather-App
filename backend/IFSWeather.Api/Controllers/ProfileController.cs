@@ -28,4 +28,19 @@ public sealed class ProfileController : ControllerBase
 
         return Ok(response);
     }
+
+    [HttpPut]
+    [ProducesResponseType<ProfileResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ProfileResponse>> Update(
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _profileService.UpdateCurrentProfileAsync(
+            request,
+            cancellationToken);
+
+        return Ok(response);
+    }
 }

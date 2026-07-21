@@ -105,6 +105,11 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 "External weather configuration error",
                 "The external weather service is not configured correctly."),
 
+            InvalidCurrentPasswordException => CreateProblem(
+                StatusCodes.Status400BadRequest,
+                "Password change failed",
+                "The password change request could not be completed."),
+
             InvalidCredentialsException or InactiveUserException
                 or ProfileUnavailableException => CreateProblem(
                 StatusCodes.Status401Unauthorized,

@@ -6,4 +6,8 @@ public interface IProfileService
 {
     Task<ProfileResponse> GetCurrentProfileAsync(
         CancellationToken cancellationToken = default);
+
+    Task<ProfileResponse> UpdateCurrentProfileAsync(
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken = default);
 }
