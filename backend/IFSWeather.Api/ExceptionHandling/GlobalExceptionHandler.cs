@@ -3,6 +3,7 @@ using IFSWeather.Application.Admin.Users.Exceptions;
 using IFSWeather.Application.Authentication.Exceptions;
 using IFSWeather.Application.Profile.Exceptions;
 using IFSWeather.Application.Weather.Exceptions;
+using IFSWeather.Application.Weather.External.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 
@@ -83,6 +84,26 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 StatusCodes.Status400BadRequest,
                 "Default city unavailable",
                 "A default city is required to retrieve weather information."),
+
+            ExternalWeatherCityNotFoundException => CreateProblem(
+                StatusCodes.Status404NotFound,
+                "External weather city not found",
+                "The requested city could not be found by the weather provider."),
+
+            ExternalWeatherRateLimitException => CreateProblem(
+                StatusCodes.Status429TooManyRequests,
+                "External weather rate limit reached",
+                "The external weather service request limit has been reached."),
+
+            ExternalWeatherUnavailableException => CreateProblem(
+                StatusCodes.Status503ServiceUnavailable,
+                "External weather service unavailable",
+                "The external weather service is currently unavailable."),
+
+            ExternalWeatherConfigurationException => CreateProblem(
+                StatusCodes.Status500InternalServerError,
+                "External weather configuration error",
+                "The external weather service is not configured correctly."),
 
             InvalidCredentialsException or InactiveUserException
                 or ProfileUnavailableException => CreateProblem(
