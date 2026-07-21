@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="IFSWeather.Api/IFSWeather.Api.csproj" />
+  <Project Path="IFSWeather.Application/IFSWeather.Application.csproj" />
+  <Project Path="IFSWeather.Domain/IFSWeather.Domain.csproj" />
+  <Project Path="IFSWeather.Infrastructure/IFSWeather.Infrastructure.csproj" />
+</Solution>

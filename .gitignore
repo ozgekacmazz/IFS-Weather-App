@@ -1,0 +1,41 @@
+# .NET build outputs
+**/bin/
+**/obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+
+# JetBrains
+.idea/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local configuration containing secrets
+**/appsettings.Development.json
+**/appsettings.Local.json
+
+# React / Node
+**/node_modules/
+**/dist/
+**/build/
+**/.vite/
+
+# Test coverage
+**/TestResults/
+**/coverage/
+
+# Docker local volumes
+postgres-data/
