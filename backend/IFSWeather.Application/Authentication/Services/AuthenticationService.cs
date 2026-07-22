@@ -107,11 +107,12 @@ public sealed class AuthenticationService : IAuthenticationService
             normalizedRequest,
             cancellationToken);
 
-        var user = await _userRepository.GetTrackedByUsernameOrEmailAsync(
+        var transition = await _userRepository.ExecuteWithUserLockAsync(
             normalizedRequest.UsernameOrEmail,
+            user => EvaluateLoginTransition(user, normalizedRequest.Password),
             cancellationToken);
 
-        if (user is null)
+        if (transition is null)
         {
             await _loginAuditService.RecordAsync(
                 normalizedRequest.UsernameOrEmail,
@@ -122,10 +123,10 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new InvalidCredentialsException();
         }
 
-        if (user.Status is not UserStatus.Active)
+        if (transition.Outcome is LoginTransitionOutcome.Inactive)
         {
             await _loginAuditService.RecordAsync(
-                user.Username,
+                transition.User.Username,
                 ipAddress,
                 LoginAuditOutcome.Failed,
                 cancellationToken);
@@ -133,12 +134,10 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new InactiveUserException();
         }
 
-        var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
-
-        if (user.LockoutEndUtc > utcNow)
+        if (transition.Outcome is LoginTransitionOutcome.Locked)
         {
             await _loginAuditService.RecordAsync(
-                user.Username,
+                transition.User.Username,
                 ipAddress,
                 LoginAuditOutcome.Locked,
                 cancellationToken);
@@ -146,57 +145,85 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new InvalidCredentialsException();
         }
 
+        if (transition.Outcome is LoginTransitionOutcome.Failed)
+        {
+            await _loginAuditService.RecordAsync(
+                transition.User.Username,
+                ipAddress,
+                transition.AuditOutcome,
+                cancellationToken);
+
+            throw new InvalidCredentialsException();
+        }
+
+        var token = await _tokenService.GenerateTokenAsync(
+            transition.User,
+            cancellationToken);
+
+        await _loginAuditService.RecordAsync(
+            transition.User.Username,
+            ipAddress,
+            LoginAuditOutcome.Succeeded,
+            cancellationToken);
+
+        return CreateResponse(transition.User, token);
+    }
+
+    private LoginTransition EvaluateLoginTransition(User user, string password)
+    {
+        if (user.Status is not UserStatus.Active)
+        {
+            return new LoginTransition(
+                user,
+                LoginTransitionOutcome.Inactive,
+                LoginAuditOutcome.Failed);
+        }
+
+        var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+
+        if (user.LockoutEndUtc > utcNow)
+        {
+            return new LoginTransition(
+                user,
+                LoginTransitionOutcome.Locked,
+                LoginAuditOutcome.Locked);
+        }
+
         if (user.LockoutEndUtc.HasValue)
         {
             user.FailedLoginAttempts = 0;
             user.LockoutEndUtc = null;
-            user.UpdatedAt = utcNow;
-
-            await _userRepository.SaveChangesAsync(cancellationToken);
         }
 
-        if (!_passwordHasher.VerifyPassword(
-                user,
-                user.PasswordHash,
-                normalizedRequest.Password))
+        if (!_passwordHasher.VerifyPassword(user, user.PasswordHash, password))
         {
             user.FailedLoginAttempts++;
             user.UpdatedAt = utcNow;
 
-            var auditOutcome = LoginAuditOutcome.Failed;
-
             if (user.FailedLoginAttempts >= MaximumFailedLoginAttempts)
             {
                 user.LockoutEndUtc = utcNow.Add(LockoutDuration);
-                auditOutcome = LoginAuditOutcome.Locked;
+
+                return new LoginTransition(
+                    user,
+                    LoginTransitionOutcome.Failed,
+                    LoginAuditOutcome.Locked);
             }
 
-            await _userRepository.SaveChangesAsync(cancellationToken);
-
-            await _loginAuditService.RecordAsync(
-                user.Username,
-                ipAddress,
-                auditOutcome,
-                cancellationToken);
-
-            throw new InvalidCredentialsException();
+            return new LoginTransition(
+                user,
+                LoginTransitionOutcome.Failed,
+                LoginAuditOutcome.Failed);
         }
 
         user.FailedLoginAttempts = 0;
         user.LockoutEndUtc = null;
         user.UpdatedAt = utcNow;
 
-        await _userRepository.SaveChangesAsync(cancellationToken);
-
-        var token = await _tokenService.GenerateTokenAsync(user, cancellationToken);
-
-        await _loginAuditService.RecordAsync(
-            user.Username,
-            ipAddress,
-            LoginAuditOutcome.Succeeded,
-            cancellationToken);
-
-        return CreateResponse(user, token);
+        return new LoginTransition(
+            user,
+            LoginTransitionOutcome.Succeeded,
+            LoginAuditOutcome.Succeeded);
     }
 
     private static AuthenticationResponse CreateResponse(User user, TokenResult token)
@@ -218,5 +245,18 @@ public sealed class AuthenticationService : IAuthenticationService
     private static string NormalizeRequiredValue(string? value)
     {
         return value?.Trim() ?? string.Empty;
+    }
+
+    private sealed record LoginTransition(
+        User User,
+        LoginTransitionOutcome Outcome,
+        LoginAuditOutcome AuditOutcome);
+
+    private enum LoginTransitionOutcome
+    {
+        Inactive,
+        Locked,
+        Failed,
+        Succeeded
     }
 }

@@ -20,9 +20,11 @@ public interface IUserRepository
         int userId,
         CancellationToken cancellationToken = default);
 
-    Task<User?> GetTrackedByUsernameOrEmailAsync(
+    Task<TResult?> ExecuteWithUserLockAsync<TResult>(
         string value,
-        CancellationToken cancellationToken);
+        Func<User, TResult> operation,
+        CancellationToken cancellationToken)
+        where TResult : class;
 
     Task<bool> UsernameExistsAsync(
         string username,
