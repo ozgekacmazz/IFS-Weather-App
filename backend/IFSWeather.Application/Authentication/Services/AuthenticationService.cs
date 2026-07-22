@@ -10,10 +10,14 @@ namespace IFSWeather.Application.Authentication.Services;
 
 public sealed class AuthenticationService : IAuthenticationService
 {
+    private const int MaximumFailedLoginAttempts = 3;
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(1);
+
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
     private readonly ILoginAuditService _loginAuditService;
+    private readonly TimeProvider _timeProvider;
     private readonly IValidator<RegisterRequest> _registerRequestValidator;
     private readonly IValidator<LoginRequest> _loginRequestValidator;
 
@@ -22,6 +26,7 @@ public sealed class AuthenticationService : IAuthenticationService
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
         ILoginAuditService loginAuditService,
+        TimeProvider timeProvider,
         IValidator<RegisterRequest> registerRequestValidator,
         IValidator<LoginRequest> loginRequestValidator)
     {
@@ -29,6 +34,7 @@ public sealed class AuthenticationService : IAuthenticationService
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
         _loginAuditService = loginAuditService;
+        _timeProvider = timeProvider;
         _registerRequestValidator = registerRequestValidator;
         _loginRequestValidator = loginRequestValidator;
     }
@@ -101,7 +107,7 @@ public sealed class AuthenticationService : IAuthenticationService
             normalizedRequest,
             cancellationToken);
 
-        var user = await _userRepository.GetByUsernameOrEmailAsync(
+        var user = await _userRepository.GetTrackedByUsernameOrEmailAsync(
             normalizedRequest.UsernameOrEmail,
             cancellationToken);
 
@@ -127,19 +133,60 @@ public sealed class AuthenticationService : IAuthenticationService
             throw new InactiveUserException();
         }
 
+        var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+
+        if (user.LockoutEndUtc > utcNow)
+        {
+            await _loginAuditService.RecordAsync(
+                user.Username,
+                ipAddress,
+                LoginAuditOutcome.Locked,
+                cancellationToken);
+
+            throw new InvalidCredentialsException();
+        }
+
+        if (user.LockoutEndUtc.HasValue)
+        {
+            user.FailedLoginAttempts = 0;
+            user.LockoutEndUtc = null;
+            user.UpdatedAt = utcNow;
+
+            await _userRepository.SaveChangesAsync(cancellationToken);
+        }
+
         if (!_passwordHasher.VerifyPassword(
                 user,
                 user.PasswordHash,
                 normalizedRequest.Password))
         {
+            user.FailedLoginAttempts++;
+            user.UpdatedAt = utcNow;
+
+            var auditOutcome = LoginAuditOutcome.Failed;
+
+            if (user.FailedLoginAttempts >= MaximumFailedLoginAttempts)
+            {
+                user.LockoutEndUtc = utcNow.Add(LockoutDuration);
+                auditOutcome = LoginAuditOutcome.Locked;
+            }
+
+            await _userRepository.SaveChangesAsync(cancellationToken);
+
             await _loginAuditService.RecordAsync(
                 user.Username,
                 ipAddress,
-                LoginAuditOutcome.Failed,
+                auditOutcome,
                 cancellationToken);
 
             throw new InvalidCredentialsException();
         }
+
+        user.FailedLoginAttempts = 0;
+        user.LockoutEndUtc = null;
+        user.UpdatedAt = utcNow;
+
+        await _userRepository.SaveChangesAsync(cancellationToken);
 
         var token = await _tokenService.GenerateTokenAsync(user, cancellationToken);
 

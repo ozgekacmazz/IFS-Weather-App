@@ -11,6 +11,7 @@ public sealed class LoginAuditService : ILoginAuditService
     private const int MaximumIpAddressLength = 45;
     private const string LoginSucceededMessage = "User login succeeded.";
     private const string LoginFailedMessage = "User login failed.";
+    private const string LoginLockedMessage = "User login rejected because the account is locked.";
 
     private readonly IUserLoginLogRepository _loginLogRepository;
     private readonly TimeProvider _timeProvider;
@@ -39,9 +40,12 @@ public sealed class LoginAuditService : ILoginAuditService
                 Username = Truncate(username, MaximumUsernameLength),
                 LogTime = _timeProvider.GetUtcNow().UtcDateTime,
                 IPAddress = TruncateOptional(ipAddress, MaximumIpAddressLength),
-                Log = outcome is LoginAuditOutcome.Succeeded
-                    ? LoginSucceededMessage
-                    : LoginFailedMessage
+                Log = outcome switch
+                {
+                    LoginAuditOutcome.Succeeded => LoginSucceededMessage,
+                    LoginAuditOutcome.Locked => LoginLockedMessage,
+                    _ => LoginFailedMessage
+                }
             };
 
             await _loginLogRepository.AddAsync(loginLog, cancellationToken);

@@ -20,7 +20,7 @@ public interface IUserRepository
         int userId,
         CancellationToken cancellationToken = default);
 
-    Task<User?> GetByUsernameOrEmailAsync(
+    Task<User?> GetTrackedByUsernameOrEmailAsync(
         string value,
         CancellationToken cancellationToken);
 

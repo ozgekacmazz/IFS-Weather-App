@@ -71,14 +71,13 @@ public sealed class UserRepository : IUserRepository
             cancellationToken);
     }
 
-    public Task<User?> GetByUsernameOrEmailAsync(
+    public Task<User?> GetTrackedByUsernameOrEmailAsync(
         string value,
         CancellationToken cancellationToken)
     {
         var pattern = EscapeLikePattern(value);
 
         return _dbContext.Users
-            .AsNoTracking()
             .SingleOrDefaultAsync(
                 user => EF.Functions.ILike(
                             user.Username,
