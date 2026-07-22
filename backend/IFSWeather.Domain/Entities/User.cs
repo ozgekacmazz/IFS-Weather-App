@@ -20,4 +20,8 @@ public class User : BaseEntity
     public UserRole Role { get; set; } = UserRole.User;
 
     public UserStatus Status { get; set; } = UserStatus.Active;
+
+    public int FailedLoginAttempts { get; set; } = 0;
+
+    public DateTime? LockoutEndUtc { get; set; }
 }

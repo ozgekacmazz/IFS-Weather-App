@@ -71,24 +71,41 @@ public sealed class UserRepository : IUserRepository
             cancellationToken);
     }
 
-    public Task<User?> GetByUsernameOrEmailAsync(
+    public async Task<TResult?> ExecuteWithUserLockAsync<TResult>(
         string value,
+        Func<User, TResult> operation,
         CancellationToken cancellationToken)
+        where TResult : class
     {
         var pattern = EscapeLikePattern(value);
 
-        return _dbContext.Users
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                user => EF.Functions.ILike(
-                            user.Username,
-                            pattern,
-                            LikeEscapeCharacter)
-                        || EF.Functions.ILike(
-                            user.Email,
-                            pattern,
-                            LikeEscapeCharacter),
-                cancellationToken);
+        await using var transaction = await _dbContext.Database
+            .BeginTransactionAsync(cancellationToken);
+
+        var users = await _dbContext.Users
+            .FromSqlInterpolated($"""
+                SELECT *
+                FROM "USER_TAB"
+                WHERE "Username" ILIKE {pattern} ESCAPE '\'
+                   OR "Email" ILIKE {pattern} ESCAPE '\'
+                FOR UPDATE
+                """)
+            .ToListAsync(cancellationToken);
+
+        var user = users.SingleOrDefault();
+
+        if (user is null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return null;
+        }
+
+        var result = operation(user);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return result;
     }
 
     public Task<bool> UsernameExistsAsync(

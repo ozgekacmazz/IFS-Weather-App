@@ -3,4 +3,5 @@
   <Project Path="IFSWeather.Application/IFSWeather.Application.csproj" />
   <Project Path="IFSWeather.Domain/IFSWeather.Domain.csproj" />
   <Project Path="IFSWeather.Infrastructure/IFSWeather.Infrastructure.csproj" />
+  <Project Path="IFSWeather.Tests/IFSWeather.Tests.csproj" />
 </Solution>

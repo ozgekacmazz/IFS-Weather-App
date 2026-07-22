@@ -39,6 +39,11 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(user => user.Role)
             .HasColumnName("UserType");
 
+        builder.Property(user => user.FailedLoginAttempts)
+            .HasDefaultValue(0);
+
+        builder.Property(user => user.LockoutEndUtc);
+
         builder.HasIndex(user => user.Username)
             .IsUnique();
 
