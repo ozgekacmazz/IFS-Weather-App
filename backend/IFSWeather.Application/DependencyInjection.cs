@@ -1,4 +1,6 @@
 using FluentValidation;
+using IFSWeather.Application.AdminBootstrap.Interfaces;
+using IFSWeather.Application.AdminBootstrap.Services;
 using IFSWeather.Application.Admin.Users.Interfaces;
 using IFSWeather.Application.Admin.Users.Services;
 using IFSWeather.Application.Authentication.Interfaces;
@@ -19,6 +21,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
+        services.AddScoped<IAdminBootstrapService, AdminBootstrapService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IAdminUserService, AdminUserService>();

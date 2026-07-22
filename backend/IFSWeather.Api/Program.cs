@@ -42,6 +42,8 @@ builder.Services.AddJwtAuthentication();
 
 var app = builder.Build();
 
+await app.RunAdminBootstrapAsync();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
