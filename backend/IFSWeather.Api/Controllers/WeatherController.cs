@@ -39,11 +39,9 @@ public sealed class WeatherController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<WeatherForecastResponse>> GetForecast(
-        [FromQuery] WeatherForecastQuery query,
         CancellationToken cancellationToken)
     {
         var response = await _userWeatherService.GetForecastAsync(
-            query,
             cancellationToken);
 
         return Ok(response);

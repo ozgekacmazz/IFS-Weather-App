@@ -10,6 +10,5 @@ public interface IUserWeatherService
         CancellationToken cancellationToken = default);
 
     Task<WeatherForecastResponse> GetForecastAsync(
-        WeatherForecastQuery query,
         CancellationToken cancellationToken = default);
 }

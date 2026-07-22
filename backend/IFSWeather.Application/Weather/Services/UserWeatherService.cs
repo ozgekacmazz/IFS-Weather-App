@@ -21,20 +21,20 @@ public sealed class UserWeatherService : IUserWeatherService
     private readonly IUserRepository _userRepository;
     private readonly IWeatherRepository _weatherRepository;
     private readonly IValidator<CurrentWeatherQuery> _currentWeatherValidator;
-    private readonly IValidator<WeatherForecastQuery> _forecastValidator;
+    private readonly TimeProvider _timeProvider;
 
     public UserWeatherService(
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         IWeatherRepository weatherRepository,
         IValidator<CurrentWeatherQuery> currentWeatherValidator,
-        IValidator<WeatherForecastQuery> forecastValidator)
+        TimeProvider timeProvider)
     {
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _weatherRepository = weatherRepository;
         _currentWeatherValidator = currentWeatherValidator;
-        _forecastValidator = forecastValidator;
+        _timeProvider = timeProvider;
     }
 
     public async Task<CurrentWeatherResponse> GetCurrentWeatherAsync(
@@ -62,21 +62,15 @@ public sealed class UserWeatherService : IUserWeatherService
     }
 
     public async Task<WeatherForecastResponse> GetForecastAsync(
-        WeatherForecastQuery query,
         CancellationToken cancellationToken = default)
     {
-        var normalizedQuery = query with
-        {
-            City = NormalizeOptionalCity(query.City)
-        };
-
-        await _forecastValidator.ValidateAndThrowAsync(
-            normalizedQuery,
-            cancellationToken);
-
-        var city = await ResolveCityAsync(normalizedQuery.City, cancellationToken);
-        var startDate = DateOnly.FromDateTime(DateTime.UtcNow);
-        var endDate = startDate.AddDays(normalizedQuery.Days - 1);
+        var city = await ResolveCityAsync(null, cancellationToken);
+        var currentDate = DateOnly.FromDateTime(
+            _timeProvider.GetUtcNow().UtcDateTime);
+        var daysSinceMonday = (
+            7 + (int)currentDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+        var startDate = currentDate.AddDays(-daysSinceMonday);
+        var endDate = startDate.AddDays(6);
         var weatherInfos = await _weatherRepository.GetByCityAndDateRangeAsync(
             city,
             startDate,
@@ -87,7 +81,7 @@ public sealed class UserWeatherService : IUserWeatherService
         return new WeatherForecastResponse(
             city,
             startDate,
-            normalizedQuery.Days,
+            7,
             items);
     }
 
