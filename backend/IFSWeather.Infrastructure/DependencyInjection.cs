@@ -1,3 +1,4 @@
+using IFSWeather.Application.AdminBootstrap.Interfaces;
 using IFSWeather.Application.Authentication.Interfaces;
 using IFSWeather.Application.Authentication.Settings;
 using IFSWeather.Infrastructure.Authentication;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
 
+        services.AddScoped<IAdminBootstrapRepository, AdminBootstrapRepository>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserLoginLogRepository, UserLoginLogRepository>();
