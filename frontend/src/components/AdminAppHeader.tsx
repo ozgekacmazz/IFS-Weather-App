@@ -24,6 +24,12 @@ export function AdminAppHeader({ onSignOut }: AdminAppHeaderProps) {
         >
           Users
         </NavLink>
+        <NavLink
+          to="/app/admin/weather"
+          className={({ isActive }) => (isActive ? 'active' : undefined)}
+        >
+          Weather
+        </NavLink>
       </nav>
       <button className="secondary-button" type="button" onClick={onSignOut}>
         Sign out

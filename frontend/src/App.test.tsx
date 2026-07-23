@@ -46,6 +46,16 @@ function dashboardResponse(url: string) {
     }
   }
 
+  if (url.includes('/api/admin/weather?')) {
+    return {
+      items: [],
+      pageNumber: 1,
+      pageSize: 20,
+      totalCount: 0,
+      totalPages: 0,
+    }
+  }
+
   if (url.endsWith('/api/profile')) {
     return profileResponse()
   }
@@ -165,6 +175,20 @@ describe('authentication flow', () => {
     ).toBeInTheDocument()
   })
 
+  it('redirects anonymous Admin weather access to login', async () => {
+    renderApp('/app/admin/weather')
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('returns an Admin to the exact safe requested weather route after login', async () => {
+    await submitLogin(UserRoles.Admin, '/app/admin/weather')
+    expect(
+      await screen.findByRole('heading', { name: 'Weather management' }),
+    ).toBeInTheDocument()
+  })
+
   it('rejects an arbitrary requested Admin path after login', async () => {
     await submitLogin(UserRoles.Admin, '/app/admin/not-approved')
 
@@ -235,9 +259,16 @@ describe('authentication flow', () => {
     ).toBeInTheDocument()
   })
 
+  it('redirects a User away from Admin weather management', async () => {
+    await submitLogin(UserRoles.User, '/app/admin/weather')
+    expect(
+      await screen.findByRole('heading', { name: /your weather, at a glance/i }),
+    ).toBeInTheDocument()
+  })
+
   it('lets an Admin navigate between overview and users and sign out', async () => {
     const user = await submitLogin(UserRoles.Admin)
-    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'Overview' })).toHaveAttribute(
       'aria-current',
       'page',
     )
@@ -245,6 +276,14 @@ describe('authentication flow', () => {
     expect(
       await screen.findByRole('heading', { name: 'User management' }),
     ).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Weather' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Weather management' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Weather' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
     await user.click(screen.getByRole('link', { name: 'Overview' }))
     expect(
       await screen.findByText('Your administration workspace is ready.'),

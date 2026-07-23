@@ -638,6 +638,121 @@ button:focus-visible {
   padding: clamp(2.5rem, 6vw, 5rem) 0;
 }
 
+.admin-weather-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-weather-intro h1 {
+  margin: 0;
+  font: 700 clamp(2.6rem, 6vw, 4.6rem) / 1.05 'Manrope', sans-serif;
+  letter-spacing: -0.05em;
+}
+
+.admin-weather-intro p:last-child {
+  color: #68738a;
+}
+
+.admin-weather-intro > button,
+.danger-button {
+  padding: 0.8rem 1rem;
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  background: #126e75;
+  font-weight: 700;
+}
+
+.danger-button {
+  background: #a52a35;
+}
+
+.admin-weather-field {
+  display: grid;
+}
+
+.admin-weather-field input {
+  margin: 0;
+}
+
+.admin-weather-success {
+  margin: 1rem 0 0;
+}
+
+.admin-weather-condition,
+.admin-weather-detail-condition {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.admin-weather-condition .weather-condition-icon {
+  width: 42px;
+  min-height: 42px;
+  font-size: 1.35rem;
+}
+
+.admin-weather-detail-condition {
+  margin-bottom: 1rem;
+}
+
+.admin-weather-detail-condition .weather-condition-icon {
+  width: 68px;
+  min-height: 68px;
+  font-size: 2rem;
+}
+
+.modal-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: 1rem;
+  background: rgb(7 24 52 / 68%);
+}
+
+.admin-modal {
+  width: min(100%, 560px);
+  padding: clamp(1.3rem, 4vw, 2rem);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgb(7 24 52 / 30%);
+}
+
+.admin-modal h2 {
+  margin: 0;
+  font: 700 1.8rem 'Manrope', sans-serif;
+}
+
+.admin-modal > p {
+  color: #68738a;
+}
+
+.admin-modal form {
+  gap: 1rem;
+}
+
+.destructive-modal {
+  border-top: 6px solid #a52a35;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+}
+
+.modal-actions .secondary-button {
+  color: #126e75;
+  background: transparent;
+  box-shadow: none;
+}
+
 .admin-filter-form {
   display: grid;
   grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.35fr) auto;
@@ -854,6 +969,11 @@ button:focus-visible {
   .admin-detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-weather-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 520px) {
@@ -890,6 +1010,11 @@ button:focus-visible {
   .admin-pagination {
     justify-content: space-between;
     gap: 0.5rem;
+  }
+
+  .modal-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .user-app-header {

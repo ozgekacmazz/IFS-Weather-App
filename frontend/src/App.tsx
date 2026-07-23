@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { UserRoles } from './auth/authTypes'
+import { AdminWeatherPage } from './pages/AdminWeatherPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -42,6 +43,7 @@ export function App({ apiBaseUrl }: AppProps) {
               }
             />
             <Route path="/app/admin/users" element={<AdminUsersPage />} />
+            <Route path="/app/admin/weather" element={<AdminWeatherPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />

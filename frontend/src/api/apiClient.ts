@@ -48,11 +48,13 @@ export class ApiClient {
 
     let payload: unknown = null
 
-    try {
-      payload = await response.json()
-    } catch {
-      if (response.ok) {
-        throw new ApiError('The service returned an invalid response.', response.status)
+    if (response.status !== 204) {
+      try {
+        payload = await response.json()
+      } catch {
+        if (response.ok) {
+          throw new ApiError('The service returned an invalid response.', response.status)
+        }
       }
     }
 
