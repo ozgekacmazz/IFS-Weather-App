@@ -21,6 +21,57 @@ function authenticationResponse(
   }
 }
 
+function profileResponse() {
+  return {
+    userId: 7,
+    firstName: 'Test',
+    lastName: 'User',
+    username: 'test.user',
+    email: 'person@example.test',
+    defaultCity: 'Istanbul',
+    role: 1,
+    status: 1,
+    createdAt: '2026-07-20T08:00:00Z',
+  }
+}
+
+function dashboardResponse(url: string) {
+  if (url.endsWith('/api/profile')) {
+    return profileResponse()
+  }
+
+  if (url.endsWith('/api/weather/today')) {
+    return {
+      weatherId: 1,
+      weatherDate: '2026-07-23',
+      cityName: 'Istanbul',
+      temperature: 24,
+      mainStatus: 'Clear',
+      updatedAt: '2026-07-23T08:00:00Z',
+    }
+  }
+
+  return {
+    cityName: 'Istanbul',
+    startDate: '2026-07-20',
+    requestedDays: 7,
+    items: [],
+  }
+}
+
+function mockAuthenticationAndDashboard(role: UserRole) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    const url = input.toString()
+    const payload = url.endsWith('/api/auth/login')
+      ? authenticationResponse(role)
+      : dashboardResponse(url)
+
+    return Promise.resolve(
+      new Response(JSON.stringify(payload), { status: 200 }),
+    )
+  })
+}
+
 function NavigationHarness() {
   const navigate = useNavigate()
 
@@ -46,9 +97,7 @@ function renderApp(initialPath = '/login', withNavigationHarness = false) {
 }
 
 async function submitLogin(role: UserRole, initialPath = '/login') {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify(authenticationResponse(role)), { status: 200 }),
-  )
+  mockAuthenticationAndDashboard(role)
   const user = userEvent.setup()
   renderApp(initialPath)
 
@@ -61,11 +110,7 @@ async function submitLogin(role: UserRole, initialPath = '/login') {
 
 describe('authentication flow', () => {
   it('submits the login contract and routes a User to the weather landing page', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify(authenticationResponse(UserRoles.User)), {
-        status: 200,
-      }),
-    )
+    const fetchMock = mockAuthenticationAndDashboard(UserRoles.User)
     const user = userEvent.setup()
     renderApp()
 
@@ -74,7 +119,7 @@ describe('authentication flow', () => {
     await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
     expect(
-      await screen.findByText('Your weather workspace is ready.'),
+      await screen.findByRole('heading', { name: /your weather, at a glance/i }),
     ).toBeInTheDocument()
     const [url, options] = fetchMock.mock.calls[0]
     expect(url.toString()).toBe('https://localhost:7257/api/auth/login')
@@ -106,7 +151,7 @@ describe('authentication flow', () => {
     await submitLogin(UserRoles.User, '/app/admin')
 
     expect(
-      await screen.findByText('Your weather workspace is ready.'),
+      await screen.findByRole('heading', { name: /your weather, at a glance/i }),
     ).toBeInTheDocument()
     expect(
       screen.queryByText('Your administration workspace is ready.'),
@@ -114,25 +159,23 @@ describe('authentication flow', () => {
   })
 
   it('redirects an authenticated user away from login and registration', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify(authenticationResponse(UserRoles.User)), {
-        status: 200,
-      }),
-    )
+    mockAuthenticationAndDashboard(UserRoles.User)
     const user = userEvent.setup()
     renderApp('/login', true)
 
     await user.type(screen.getByLabelText(/username or email/i), 'test.user')
     await user.type(screen.getByLabelText(/^password$/i), 'test-password')
     await user.click(screen.getByRole('button', { name: /^sign in$/i }))
-    await screen.findByText('Your weather workspace is ready.')
+    await screen.findByRole('heading', { name: /your weather, at a glance/i })
 
     await user.click(screen.getByRole('button', { name: 'Go to login' }))
     expect(screen.queryByText(/sign in to your account/i)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Go to register' }))
     expect(screen.queryByText(/create your account/i)).not.toBeInTheDocument()
-    expect(screen.getByText('Your weather workspace is ready.')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /your weather, at a glance/i }),
+    ).toBeInTheDocument()
   })
 
   it('shows the non-enumerating 401 message and clears the password', async () => {
@@ -177,14 +220,21 @@ describe('authentication flow', () => {
         status: 200,
       }),
     )
+    fetchMock.mockImplementation((input) =>
+      Promise.resolve(
+        new Response(JSON.stringify(dashboardResponse(input.toString())), {
+          status: 200,
+        }),
+      ),
+    )
     expect(
-      await screen.findByText('Your weather workspace is ready.'),
+      await screen.findByRole('heading', { name: /your weather, at a glance/i }),
     ).toBeInTheDocument()
   })
 
   it('clears the in-memory session on sign out', async () => {
     const user = await submitLogin(UserRoles.User)
-    await screen.findByText('Your weather workspace is ready.')
+    await screen.findByRole('heading', { name: /your weather, at a glance/i })
     await user.click(screen.getByRole('button', { name: /sign out/i }))
 
     expect(

@@ -48,9 +48,9 @@ describe('registration flow', () => {
     await user.click(screen.getByRole('button', { name: /create account/i }))
 
     expect(
-      await screen.findByText('Your weather workspace is ready.'),
+      await screen.findByRole('heading', { name: /your weather, at a glance/i }),
     ).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(fetchMock.mock.calls[0]).toBeDefined()
     expect(fetchMock.mock.calls[0][0].toString()).toBe(
       'https://localhost:7257/api/auth/register',
     )
@@ -149,7 +149,7 @@ describe('registration flow', () => {
       }),
     )
     expect(
-      await screen.findByText('Your weather workspace is ready.'),
+      await screen.findByRole('heading', { name: /your weather, at a glance/i }),
     ).toBeInTheDocument()
   })
 
