@@ -5,7 +5,6 @@ import {
   useState,
   type FormEvent,
 } from 'react'
-import { Link } from 'react-router-dom'
 import { ApiError } from '../api/apiError'
 import {
   getProfile,
@@ -20,6 +19,7 @@ import {
 } from '../api/weatherApi'
 import { useAuth } from '../auth/useAuth'
 import { TemperatureChart } from '../components/TemperatureChart'
+import { UserAppHeader } from '../components/UserAppHeader'
 import { WeatherConditionIcon } from '../components/WeatherConditionIcon'
 
 const weatherFailureMessage =
@@ -270,14 +270,7 @@ export function UserWeatherDashboardPage() {
 
   return (
     <div className="weather-dashboard">
-      <header className="dashboard-header">
-        <Link className="app-logo" to="/app/weather">
-          IFS Weather
-        </Link>
-        <button className="secondary-button" type="button" onClick={logout}>
-          Sign out
-        </button>
-      </header>
+      <UserAppHeader onSignOut={logout} />
 
       <main className="dashboard-content">
         <section className="dashboard-intro">
