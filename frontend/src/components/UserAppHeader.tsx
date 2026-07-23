@@ -7,15 +7,22 @@ interface UserAppHeaderProps {
 export function UserAppHeader({ onSignOut }: UserAppHeaderProps) {
   return (
     <header className="dashboard-header user-app-header">
-      <NavLink className="app-logo" to="/app/weather">
+      <NavLink className="app-logo" to="/app/weather" end>
         IFS Weather
       </NavLink>
       <nav className="user-navigation" aria-label="User navigation">
         <NavLink
           to="/app/weather"
+          end
           className={({ isActive }) => (isActive ? 'active' : undefined)}
         >
           Weather
+        </NavLink>
+        <NavLink
+          to="/app/weather/live"
+          className={({ isActive }) => (isActive ? 'active' : undefined)}
+        >
+          Live forecast
         </NavLink>
         <NavLink
           to="/app/profile"

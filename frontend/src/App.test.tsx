@@ -221,6 +221,40 @@ describe('authentication flow', () => {
     ).toBeInTheDocument()
   })
 
+  it('returns a User to the exact safe live forecast route after login', async () => {
+    await submitLogin(UserRoles.User, '/app/weather/live')
+
+    expect(
+      await screen.findByRole('heading', { name: /explore live weather anywhere/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Live forecast' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  it('redirects anonymous live forecast access to login', async () => {
+    renderApp('/app/weather/live')
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('redirects an Admin away from the User live forecast route', async () => {
+    await submitLogin(UserRoles.Admin, '/app/weather/live')
+    expect(
+      await screen.findByText('Your administration workspace is ready.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Live forecast')).not.toBeInTheDocument()
+  })
+
+  it('rejects a near-match live forecast path after User login', async () => {
+    await submitLogin(UserRoles.User, '/app/weather/live/elsewhere')
+    expect(
+      await screen.findByRole('heading', { name: /your weather, at a glance/i }),
+    ).toBeInTheDocument()
+  })
+
   it('redirects an Admin away from the User profile route', async () => {
     await submitLogin(UserRoles.Admin, '/app/profile')
 

@@ -4,6 +4,7 @@ import { ProtectedRoute } from './auth/ProtectedRoute'
 import { UserRoles } from './auth/authTypes'
 import { AdminWeatherPage } from './pages/AdminWeatherPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
+import { ExternalWeatherForecastPage } from './pages/ExternalWeatherForecastPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { RoleLandingPage } from './pages/RoleLandingPage'
@@ -27,6 +28,10 @@ export function App({ apiBaseUrl }: AppProps) {
             <Route
               path="/app/weather"
               element={<UserWeatherDashboardPage />}
+            />
+            <Route
+              path="/app/weather/live"
+              element={<ExternalWeatherForecastPage />}
             />
             <Route path="/app/profile" element={<UserProfilePage />} />
           </Route>
