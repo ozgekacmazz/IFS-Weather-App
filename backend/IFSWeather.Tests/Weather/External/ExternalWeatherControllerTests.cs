@@ -1,12 +1,27 @@
 using System.Reflection;
 using System.Globalization;
+using System.Net;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using FluentValidation;
 using FluentValidation.Results;
 using IFSWeather.Api.Controllers;
+using IFSWeather.Api.ExceptionHandling;
 using IFSWeather.Application.Weather.External.Interfaces;
 using IFSWeather.Application.Weather.External.Models;
+using IFSWeather.Application.Weather.External.Validators;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace IFSWeather.Tests.Weather.External;
@@ -63,14 +78,13 @@ public sealed class ExternalWeatherControllerTests
         var controller = new ExternalWeatherController(
             new StubWeatherService(),
             locationSearchService);
-        var query = new ExternalLocationQuery { Query = "Aydın" };
         using var cancellation = new CancellationTokenSource();
 
-        var result = await controller.SearchLocations(query, cancellation.Token);
+        var result = await controller.SearchLocations("Aydın", cancellation.Token);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Same(locationSearchService.Response, ok.Value);
-        Assert.Same(query, locationSearchService.Query);
+        Assert.Equal("Aydın", locationSearchService.Query?.Query);
         Assert.Equal(cancellation.Token, locationSearchService.CancellationToken);
     }
 
@@ -88,7 +102,7 @@ public sealed class ExternalWeatherControllerTests
 
         await Assert.ThrowsAsync<ValidationException>(() =>
             controller.SearchLocations(
-                new ExternalLocationQuery { Query = " " },
+                " ",
                 TestContext.Current.CancellationToken));
     }
 
@@ -104,12 +118,60 @@ public sealed class ExternalWeatherControllerTests
             locationSearchService);
 
         var result = await controller.SearchLocations(
-            new ExternalLocationQuery { Query = "Missing" },
+            "Missing",
             TestContext.Current.CancellationToken);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var locations = Assert.IsAssignableFrom<IReadOnlyList<ExternalLocation>>(ok.Value);
         Assert.Empty(locations);
+    }
+
+    [Fact]
+    public async Task PublicQueryString_BindsDenizliWithoutComplexModelPrefix()
+    {
+        await using var fixture = await HttpFixture.StartAsync();
+
+        var response = await fixture.Client.GetAsync(
+            "/api/weather/external/locations?query=Denizli",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Denizli", fixture.LocationSearchService.Query?.Query);
+        Assert.DoesNotContain(
+            "query.Query",
+            await response.Content.ReadAsStringAsync(
+                TestContext.Current.CancellationToken),
+            StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("/api/weather/external/locations")]
+    [InlineData("/api/weather/external/locations?query=%20%20")]
+    public async Task PublicQueryString_MissingOrBlankQueryReturnsSafeValidation(
+        string requestPath)
+    {
+        await using var fixture = await HttpFixture.StartAsync();
+
+        var response = await fixture.Client.GetAsync(
+            requestPath,
+            TestContext.Current.CancellationToken);
+
+        await AssertSafeValidationProblem(response);
+    }
+
+    [Fact]
+    public async Task PublicQueryString_OverlongQueryReturnsSafeValidation()
+    {
+        await using var fixture = await HttpFixture.StartAsync();
+        var query = new string(
+            'a',
+            ExternalLocationQueryValidator.MaximumQueryLength + 1);
+
+        var response = await fixture.Client.GetAsync(
+            $"/api/weather/external/locations?query={query}",
+            TestContext.Current.CancellationToken);
+
+        await AssertSafeValidationProblem(response);
     }
 
     [Fact]
@@ -156,6 +218,143 @@ public sealed class ExternalWeatherControllerTests
             NumberStyles.Number,
             CultureInfo.InvariantCulture,
             out _));
+    }
+
+    private static async Task AssertSafeValidationProblem(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "application/problem+json",
+            response.Content.Headers.ContentType?.MediaType);
+
+        using var document = JsonDocument.Parse(
+            await response.Content.ReadAsStringAsync(
+                TestContext.Current.CancellationToken));
+        var root = document.RootElement;
+
+        Assert.Equal(400, root.GetProperty("status").GetInt32());
+        Assert.True(root.GetProperty("errors").EnumerateObject().Any());
+        Assert.DoesNotContain(
+            "query.Query",
+            root.GetRawText(),
+            StringComparison.Ordinal);
+    }
+
+    private sealed class HttpFixture : IAsyncDisposable
+    {
+        private readonly WebApplication _application;
+
+        private HttpFixture(
+            WebApplication application,
+            HttpClient client,
+            ValidatingLocationSearchService locationSearchService)
+        {
+            _application = application;
+            Client = client;
+            LocationSearchService = locationSearchService;
+        }
+
+        public HttpClient Client { get; }
+
+        public ValidatingLocationSearchService LocationSearchService { get; }
+
+        public static async Task<HttpFixture> StartAsync()
+        {
+            var locationSearchService = new ValidatingLocationSearchService();
+            var builder = WebApplication.CreateBuilder(
+                new WebApplicationOptions
+                {
+                    EnvironmentName = Environments.Development
+                });
+            builder.WebHost.UseUrls("http://127.0.0.1:0");
+            builder.Services
+                .AddAuthentication(TestAuthenticationHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthenticationHandler>(
+                    TestAuthenticationHandler.SchemeName,
+                    _ => { });
+            builder.Services.AddAuthorization();
+            builder.Services.AddProblemDetails();
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+            builder.Services.AddSingleton<IExternalWeatherService>(
+                new StubWeatherService());
+            builder.Services.AddSingleton<IExternalLocationSearchService>(
+                locationSearchService);
+            builder.Services
+                .AddControllers()
+                .AddApplicationPart(typeof(ExternalWeatherController).Assembly);
+
+            var application = builder.Build();
+            application.UseExceptionHandler();
+            application.UseAuthentication();
+            application.UseAuthorization();
+            application.MapControllers();
+            await application.StartAsync(TestContext.Current.CancellationToken);
+
+            var server = application.Services.GetRequiredService<IServer>();
+            var address = Assert.Single(
+                server.Features.Get<IServerAddressesFeature>()!.Addresses);
+            var client = new HttpClient
+            {
+                BaseAddress = new Uri(address)
+            };
+
+            return new HttpFixture(application, client, locationSearchService);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            Client.Dispose();
+            await _application.DisposeAsync();
+        }
+    }
+
+    private sealed class ValidatingLocationSearchService
+        : IExternalLocationSearchService
+    {
+        private readonly ExternalLocationQueryValidator _validator = new();
+
+        public ExternalLocationQuery? Query { get; private set; }
+
+        public async Task<IReadOnlyList<ExternalLocation>> SearchAsync(
+            ExternalLocationQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            Query = query;
+            var trimmedQuery = query with
+            {
+                Query = query.Query?.Trim() ?? string.Empty
+            };
+            await _validator.ValidateAndThrowAsync(
+                trimmedQuery,
+                cancellationToken);
+
+            return [];
+        }
+    }
+
+    private sealed class TestAuthenticationHandler
+        : AuthenticationHandler<AuthenticationSchemeOptions>
+    {
+        public const string SchemeName = "Test";
+
+        public TestAuthenticationHandler(
+            IOptionsMonitor<AuthenticationSchemeOptions> options,
+            ILoggerFactory logger,
+            UrlEncoder encoder)
+            : base(options, logger, encoder)
+        {
+        }
+
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            var identity = new ClaimsIdentity(
+                [new Claim(ClaimTypes.NameIdentifier, "1")],
+                SchemeName);
+            var principal = new ClaimsPrincipal(identity);
+
+            return Task.FromResult(AuthenticateResult.Success(
+                new AuthenticationTicket(principal, SchemeName)));
+        }
     }
 
     private sealed class StubLocationSearchService : IExternalLocationSearchService

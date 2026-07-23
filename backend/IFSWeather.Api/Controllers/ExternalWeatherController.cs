@@ -29,11 +29,11 @@ public sealed class ExternalWeatherController : ControllerBase
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<IReadOnlyList<ExternalLocation>>> SearchLocations(
-        [FromQuery] ExternalLocationQuery query,
+        [FromQuery(Name = "query")] string query,
         CancellationToken cancellationToken)
     {
         var response = await _externalLocationSearchService.SearchAsync(
-            query,
+            new ExternalLocationQuery { Query = query },
             cancellationToken);
 
         return Ok(response);
