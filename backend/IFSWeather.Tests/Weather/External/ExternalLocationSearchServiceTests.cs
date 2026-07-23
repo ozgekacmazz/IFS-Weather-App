@@ -123,5 +123,12 @@ public sealed class ExternalLocationSearchServiceTests
             int days,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task<ExternalWeatherForecast> GetForecastByCoordinatesAsync(
+            decimal latitude,
+            decimal longitude,
+            int days,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

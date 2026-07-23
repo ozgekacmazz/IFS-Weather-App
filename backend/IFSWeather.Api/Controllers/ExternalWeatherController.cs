@@ -39,6 +39,25 @@ public sealed class ExternalWeatherController : ControllerBase
         return Ok(response);
     }
 
+    [HttpGet("forecast/coordinates")]
+    [ProducesResponseType<ExternalWeatherForecast>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<ExternalWeatherForecast>> GetForecastByCoordinates(
+        [FromQuery] ExternalCoordinateForecastQuery query,
+        CancellationToken cancellationToken)
+    {
+        var response = await _externalWeatherService.GetForecastByCoordinatesAsync(
+            query,
+            cancellationToken);
+
+        return Ok(response);
+    }
+
     [HttpGet("forecast")]
     [ProducesResponseType<ExternalWeatherForecast>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

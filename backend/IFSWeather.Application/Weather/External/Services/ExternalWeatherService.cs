@@ -13,13 +13,29 @@ public sealed class ExternalWeatherService : IExternalWeatherService
 
     private readonly IExternalWeatherProvider _externalWeatherProvider;
     private readonly IValidator<ExternalForecastQuery> _validator;
+    private readonly IValidator<ExternalCoordinateForecastQuery> _coordinateValidator;
 
     public ExternalWeatherService(
         IExternalWeatherProvider externalWeatherProvider,
-        IValidator<ExternalForecastQuery> validator)
+        IValidator<ExternalForecastQuery> validator,
+        IValidator<ExternalCoordinateForecastQuery> coordinateValidator)
     {
         _externalWeatherProvider = externalWeatherProvider;
         _validator = validator;
+        _coordinateValidator = coordinateValidator;
+    }
+
+    public async Task<ExternalWeatherForecast> GetForecastByCoordinatesAsync(
+        ExternalCoordinateForecastQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        await _coordinateValidator.ValidateAndThrowAsync(query, cancellationToken);
+
+        return await _externalWeatherProvider.GetForecastByCoordinatesAsync(
+            query.Latitude!.Value,
+            query.Longitude!.Value,
+            query.Days,
+            cancellationToken);
     }
 
     public async Task<ExternalWeatherForecast> GetForecastAsync(

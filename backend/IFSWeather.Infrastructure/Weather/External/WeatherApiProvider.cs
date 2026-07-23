@@ -97,6 +97,31 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
         int days,
         CancellationToken cancellationToken = default)
     {
+        return await GetForecastCoreAsync(city, days, cancellationToken);
+    }
+
+    public async Task<ExternalWeatherForecast> GetForecastByCoordinatesAsync(
+        decimal latitude,
+        decimal longitude,
+        int days,
+        CancellationToken cancellationToken = default)
+    {
+        var coordinateQuery = string.Concat(
+            latitude.ToString("G29", CultureInfo.InvariantCulture),
+            ",",
+            longitude.ToString("G29", CultureInfo.InvariantCulture));
+
+        return await GetForecastCoreAsync(
+            coordinateQuery,
+            days,
+            cancellationToken);
+    }
+
+    private async Task<ExternalWeatherForecast> GetForecastCoreAsync(
+        string providerQuery,
+        int days,
+        CancellationToken cancellationToken)
+    {
         if (days > _options.MaximumForecastDays)
         {
             throw new ExternalWeatherConfigurationException();
@@ -107,7 +132,7 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
             new Dictionary<string, string?>
             {
                 ["key"] = _options.ApiKey,
-                ["q"] = city,
+                ["q"] = providerQuery,
                 ["days"] = days.ToString(CultureInfo.InvariantCulture),
                 ["aqi"] = "no",
                 ["alerts"] = "no"
@@ -125,7 +150,7 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
             {
                 await ThrowForFailureAsync(
                     response,
-                    city,
+                    providerQuery,
                     days,
                     cancellationToken);
             }
@@ -141,22 +166,22 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            LogFailure(city, days, "Timeout");
+            LogFailure(providerQuery, days, "Timeout");
             throw new ExternalWeatherUnavailableException();
         }
         catch (HttpRequestException exception)
         {
-            LogFailure(city, days, exception.GetType().Name);
+            LogFailure(providerQuery, days, exception.GetType().Name);
             throw new ExternalWeatherUnavailableException();
         }
         catch (JsonException exception)
         {
-            LogFailure(city, days, exception.GetType().Name);
+            LogFailure(providerQuery, days, exception.GetType().Name);
             throw new ExternalWeatherUnavailableException();
         }
         catch (NotSupportedException exception)
         {
-            LogFailure(city, days, exception.GetType().Name);
+            LogFailure(providerQuery, days, exception.GetType().Name);
             throw new ExternalWeatherUnavailableException();
         }
     }
