@@ -13,6 +13,133 @@ public sealed class WeatherApiProviderTests
     private const string ApiKey = "test-provider-key-that-must-not-be-logged";
 
     [Fact]
+    public async Task SearchLocationsAsync_UsesEncodedSearchEndpointAndMapsOrderedResults()
+    {
+        var handler = new StubHandler(_ => JsonResponse("""
+            [
+              {
+                "id": 1001,
+                "name": "Aydın",
+                "region": "Aydin",
+                "country": "Turkey",
+                "lat": 37.84,
+                "lon": 27.84
+              },
+              {
+                "id": 1002,
+                "name": "Aydıncık",
+                "region": "",
+                "country": "Turkey",
+                "lat": 36.14,
+                "lon": 33.32
+              }
+            ]
+            """));
+        using var cancellation = new CancellationTokenSource();
+        var provider = CreateProvider(handler);
+
+        var result = await provider.SearchLocationsAsync("Aydın", cancellation.Token);
+
+        Assert.True(handler.CancellationToken.CanBeCanceled);
+        Assert.NotNull(handler.RequestUri);
+        Assert.Equal("/v1/search.json", handler.RequestUri.AbsolutePath);
+        Assert.Contains("q=Ayd%C4%B1n", handler.RequestUri.Query);
+        Assert.DoesNotContain("q=aydin", handler.RequestUri.Query);
+        Assert.Collection(
+            result,
+            location =>
+            {
+                Assert.Equal(1001, location.ProviderLocationId);
+                Assert.Equal("Aydın", location.Name);
+                Assert.Equal("Aydin", location.Region);
+                Assert.Equal("Turkey", location.Country);
+                Assert.Equal(37.84m, location.Latitude);
+                Assert.Equal(27.84m, location.Longitude);
+                Assert.Equal("Aydın, Aydin, Turkey", location.DisplayLabel);
+            },
+            location =>
+            {
+                Assert.Equal(1002, location.ProviderLocationId);
+                Assert.Equal("Aydıncık", location.Name);
+                Assert.Null(location.Region);
+                Assert.Equal("Aydıncık, Turkey", location.DisplayLabel);
+            });
+    }
+
+    [Theory]
+    [InlineData("Aydın", "Ayd%C4%B1n")]
+    [InlineData("İzmir", "%C4%B0zmir")]
+    [InlineData("Şanlıurfa", "%C5%9Eanl%C4%B1urfa")]
+    [InlineData("Çanakkale", "%C3%87anakkale")]
+    [InlineData("Eskişehir", "Eski%C5%9Fehir")]
+    [InlineData("München", "M%C3%BCnchen")]
+    [InlineData("São Paulo", "S%C3%A3o%20Paulo")]
+    [InlineData("Kraków", "Krak%C3%B3w")]
+    public async Task SearchLocationsAsync_PreservesAndEncodesUnicodeQuery(
+        string query,
+        string encodedQuery)
+    {
+        var handler = new StubHandler(_ => JsonResponse("[]"));
+        var provider = CreateProvider(handler);
+
+        var result = await provider.SearchLocationsAsync(
+            query,
+            TestContext.Current.CancellationToken);
+
+        Assert.Empty(result);
+        Assert.NotNull(handler.RequestUri);
+        Assert.Contains($"q={encodedQuery}", handler.RequestUri.Query);
+    }
+
+    [Fact]
+    public async Task SearchLocationsAsync_ReturnsEmptyCollectionForNoMatches()
+    {
+        var provider = CreateProvider(new StubHandler(_ => JsonResponse("[]")));
+
+        var result = await provider.SearchLocationsAsync(
+            "Missing",
+            TestContext.Current.CancellationToken);
+
+        Assert.Empty(result);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.TooManyRequests, typeof(ExternalWeatherRateLimitException))]
+    [InlineData(HttpStatusCode.Unauthorized, typeof(ExternalWeatherConfigurationException))]
+    [InlineData(HttpStatusCode.BadGateway, typeof(ExternalWeatherUnavailableException))]
+    public async Task SearchLocationsAsync_TranslatesProviderFailure(
+        HttpStatusCode status,
+        Type expectedExceptionType)
+    {
+        var provider = CreateProvider(new StubHandler(_ =>
+            JsonResponse("""{ "error": { "message": "provider failure" } }""", status)));
+
+        var exception = await Record.ExceptionAsync(() =>
+            provider.SearchLocationsAsync(
+                "Aydın",
+                TestContext.Current.CancellationToken));
+
+        Assert.IsType(expectedExceptionType, exception);
+    }
+
+    [Fact]
+    public async Task SearchLocationsAsync_TimeoutDoesNotLogSecretOrProviderUri()
+    {
+        var logger = new RecordingLogger();
+        var provider = CreateProvider(
+            new StubHandler(_ => throw new TaskCanceledException("secret-bearing URL")),
+            logger);
+
+        await Assert.ThrowsAsync<ExternalWeatherUnavailableException>(() =>
+            provider.SearchLocationsAsync("Aydın", CancellationToken.None));
+
+        Assert.NotEmpty(logger.Messages);
+        Assert.DoesNotContain(logger.Messages, message => message.Contains(ApiKey));
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("search.json"));
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("secret-bearing URL"));
+    }
+
+    [Fact]
     public async Task GetForecastAsync_ConstructsEncodedRequestAndMapsResponse()
     {
         var handler = new StubHandler(_ => JsonResponse("""

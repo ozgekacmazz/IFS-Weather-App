@@ -104,6 +104,11 @@ public sealed class ExternalWeatherServiceTests
 
         public CancellationToken CancellationToken { get; private set; }
 
+        public Task<IReadOnlyList<ExternalLocation>> SearchLocationsAsync(
+            string query,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<ExternalWeatherForecast> GetForecastAsync(
             string city,
             int days,

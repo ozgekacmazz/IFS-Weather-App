@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\IFSWeather.Api\IFSWeather.Api.csproj" />
     <ProjectReference Include="..\IFSWeather.Application\IFSWeather.Application.csproj" />
     <ProjectReference Include="..\IFSWeather.Domain\IFSWeather.Domain.csproj" />
     <ProjectReference Include="..\IFSWeather.Infrastructure\IFSWeather.Infrastructure.csproj" />
