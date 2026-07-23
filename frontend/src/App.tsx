@@ -5,6 +5,7 @@ import { UserRoles } from './auth/authTypes'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { RoleLandingPage } from './pages/RoleLandingPage'
+import { UserWeatherDashboardPage } from './pages/UserWeatherDashboardPage'
 
 interface AppProps {
   apiBaseUrl: string
@@ -22,12 +23,7 @@ export function App({ apiBaseUrl }: AppProps) {
           >
             <Route
               path="/app/weather"
-              element={
-                <RoleLandingPage
-                  eyebrow="Weather workspace"
-                  title="Your weather workspace is ready."
-                />
-              }
+              element={<UserWeatherDashboardPage />}
             />
           </Route>
           <Route
