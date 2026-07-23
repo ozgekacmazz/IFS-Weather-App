@@ -1,9 +1,13 @@
-import { useState, type FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useRef, useState, type FormEvent } from 'react'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import {
+  getRoleHomePath,
+  getSafePostAuthenticationPath,
+} from '../auth/authNavigation'
 import { useAuth } from '../auth/useAuth'
 
 const genericLoginError =
-  'Sign-in failed. Check your credentials and account status, then try again.'
+  'Sign-in failed. Your credentials may be incorrect, or your account may be temporarily unavailable. Check your information or try again shortly.'
 
 interface LoginLocationState {
   from?: string
@@ -17,26 +21,41 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const submissionInProgress = useRef(false)
 
   if (session) {
-    return <Navigate to="/app" replace />
+    return <Navigate to={getRoleHomePath(session.role)} replace />
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    if (submissionInProgress.current) {
+      return
+    }
+
+    submissionInProgress.current = true
     setErrorMessage(null)
     setIsSubmitting(true)
 
     try {
-      await login({ usernameOrEmail: usernameOrEmail.trim(), password })
-      const requestedPath = (location.state as LoginLocationState | null)?.from
-      navigate(requestedPath?.startsWith('/app') ? requestedPath : '/app', {
-        replace: true,
+      const authenticatedSession = await login({
+        usernameOrEmail: usernameOrEmail.trim(),
+        password,
       })
+      const requestedPath = (location.state as LoginLocationState | null)?.from
+      navigate(
+        getSafePostAuthenticationPath(
+          authenticatedSession.role,
+          requestedPath,
+        ),
+        { replace: true },
+      )
     } catch {
       setPassword('')
       setErrorMessage(genericLoginError)
     } finally {
+      submissionInProgress.current = false
       setIsSubmitting(false)
     }
   }
@@ -100,6 +119,9 @@ export function LoginPage() {
               {isSubmitting ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
+          <p className="auth-switch">
+            New to IFS Weather? <Link to="/register">Create an account</Link>
+          </p>
         </div>
       </section>
     </main>

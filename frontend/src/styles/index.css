@@ -82,6 +82,11 @@ button:disabled {
   width: min(100%, 440px);
 }
 
+.registration-card {
+  width: min(100%, 560px);
+  padding-block: 2rem;
+}
+
 .mobile-brand {
   display: none;
   margin-bottom: 3rem;
@@ -114,6 +119,16 @@ button:disabled {
 }
 
 form {
+  display: grid;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-grid > div {
   display: grid;
 }
 
@@ -150,6 +165,23 @@ input:focus {
   background: #fff1f2;
   font-size: 0.88rem;
   line-height: 1.45;
+}
+
+.field-error {
+  margin: -0.7rem 0 1rem;
+  color: #b42318;
+  font-size: 0.82rem;
+}
+
+.auth-switch {
+  margin: 1.25rem 0 0;
+  color: #52606d;
+  text-align: center;
+}
+
+.auth-switch a {
+  color: #1261a0;
+  font-weight: 700;
 }
 
 form button,
@@ -237,5 +269,12 @@ form button:hover:not(:disabled) {
 
   .mobile-brand {
     display: block;
+  }
+}
+
+@media (max-width: 520px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
   }
 }
