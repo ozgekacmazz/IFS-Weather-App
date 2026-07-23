@@ -1,5 +1,6 @@
 interface WeatherConditionIconProps {
   condition: string
+  decorative?: boolean
 }
 
 const indicators: Array<{ terms: string[]; symbol: string }> = [
@@ -14,6 +15,7 @@ const indicators: Array<{ terms: string[]; symbol: string }> = [
 
 export function WeatherConditionIcon({
   condition,
+  decorative = false,
 }: WeatherConditionIconProps) {
   const normalizedCondition = condition.trim().toLowerCase()
   const indicator = indicators.find(({ terms }) =>
@@ -23,8 +25,9 @@ export function WeatherConditionIcon({
   return (
     <span
       className="weather-condition-icon"
-      role="img"
-      aria-label={`Weather condition: ${condition}`}
+      role={decorative ? undefined : 'img'}
+      aria-label={decorative ? undefined : `Weather condition: ${condition}`}
+      aria-hidden={decorative ? true : undefined}
     >
       {indicator?.symbol ?? '◇'}
     </span>

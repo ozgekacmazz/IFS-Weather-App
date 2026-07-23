@@ -2,6 +2,35 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiClient } from './apiClient'
 
 describe('ApiClient', () => {
+  it('accepts an authenticated 204 response without weakening JSON requests', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      )
+    const client = new ApiClient('https://localhost:7257', () => 'test-token')
+
+    await expect(
+      client.request('api/admin/weather/4', { method: 'DELETE' }, () => undefined, true),
+    ).resolves.toBeUndefined()
+    await expect(
+      client.request('api/profile', { method: 'GET' }, (value) => value, true),
+    ).resolves.toEqual({ ok: true })
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get('Authorization'))
+      .toBe('Bearer test-token')
+    expect(fetchMock.mock.calls[0][1]?.credentials).toBe('omit')
+  })
+
+  it.each([401, 403, 404])('keeps %s responses safe for bodyless requests', async (status) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(null, { status }),
+    )
+    const client = new ApiClient('https://localhost:7257', () => 'test-token')
+    await expect(
+      client.request('api/admin/weather/4', { method: 'DELETE' }, () => undefined, true),
+    ).rejects.toMatchObject({ status })
+  })
+
   it('attaches the in-memory bearer token only to authenticated requests', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
