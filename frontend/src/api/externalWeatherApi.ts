@@ -187,6 +187,7 @@ export function getExternalWeatherForecastByCoordinates(
   latitude: number,
   longitude: number,
   days: 1 | 2 | 3,
+  signal?: AbortSignal,
 ): Promise<ExternalWeatherForecast> {
   const query = new URLSearchParams({
     latitude: latitude.toString(),
@@ -196,7 +197,7 @@ export function getExternalWeatherForecastByCoordinates(
 
   return apiClient.request(
     `api/weather/external/forecast/coordinates?${query.toString()}`,
-    { method: 'GET' },
+    { method: 'GET', signal },
     decodeExternalWeatherForecast,
     true,
   )

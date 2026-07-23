@@ -296,6 +296,49 @@ describe('ExternalWeatherForecastPage', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('uses the existing logout flow for a genuine current search 401', async () => {
+    const { user } = await enterLivePage((input) =>
+      input.toString().includes('/locations?')
+        ? response({}, 401)
+        : baseFetch(input),
+    )
+
+    await searchFor(user, 'Aydın')
+
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('prevents an older search failure from replacing newer successful results', async () => {
+    let rejectOlder: ((reason: unknown) => void) | undefined
+    const { user } = await enterLivePage((input) => {
+      const url = input.toString()
+      if (url.includes('query=Ayd')) {
+        return new Promise<Response>((_, reject) => {
+          rejectOlder = reject
+        })
+      }
+      if (url.includes('query=%C4%B0zmir')) return response([izmir])
+      return baseFetch(input)
+    })
+
+    await searchFor(user, 'Aydın')
+    await screen.findByText('Searching locations…')
+    await searchFor(user, 'İzmir')
+    expect(
+      await screen.findByRole('option', { name: izmir.displayLabel }),
+    ).toBeInTheDocument()
+
+    rejectOlder?.(new Error('stale search failure'))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('option', { name: izmir.displayLabel }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('supports Arrow navigation, Enter selection, and Escape dismissal', async () => {
     const { user } = await enterLivePage()
     const input = await searchFor(user, 'Aydın')
@@ -326,6 +369,20 @@ describe('ExternalWeatherForecastPage', () => {
     expect(input).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
     expect(screen.getByText(`Selected ${aydin.displayLabel}.`)).toBeInTheDocument()
+  })
+
+  it('closes results on outside interaction without changing the input', async () => {
+    const { user } = await enterLivePage()
+    const input = await searchFor(user, 'Aydın')
+    await screen.findByRole('listbox')
+
+    await user.click(
+      screen.getByRole('heading', { name: 'Explore live weather anywhere.' }),
+    )
+
+    expect(input).toHaveValue('Aydın')
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
   it.each([1, 2, 3])(
@@ -387,6 +444,279 @@ describe('ExternalWeatherForecastPage', () => {
     expect(callsFor(fetchMock, '/forecast/coordinates?')).toHaveLength(0)
   })
 
+  it('clears a successful forecast immediately when input is edited or cleared', async () => {
+    const { user } = await enterLivePage()
+    const input = await selectLocation(user)
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
+    ).toBeInTheDocument()
+
+    await user.type(input, 'x')
+    expect(
+      screen.queryByRole('heading', { name: 'Aydın, Türkiye' }),
+    ).not.toBeInTheDocument()
+
+    await user.clear(input)
+    expect(screen.getByText(/no live forecast request is made/i)).toBeInTheDocument()
+  })
+
+  it('clears an old forecast before a new empty or failed search completes', async () => {
+    let searchAttempts = 0
+    const { user } = await enterLivePage((input) => {
+      const url = input.toString()
+      if (url.includes('/locations?')) {
+        searchAttempts += 1
+        if (searchAttempts === 1) return response([aydin, aydinOhio])
+        if (searchAttempts === 2) return response([])
+        return response({ detail: 'provider secret' }, 503)
+      }
+      return baseFetch(input)
+    })
+    const input = await selectLocation(user)
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+    await screen.findByRole('heading', { name: 'Aydın, Türkiye' })
+
+    await user.clear(input)
+    await user.type(input, 'Missing')
+    expect(
+      screen.queryByRole('heading', { name: 'Aydın, Türkiye' }),
+    ).not.toBeInTheDocument()
+    expect(await screen.findByText('No matching locations found.')).toBeInTheDocument()
+
+    await user.clear(input)
+    await user.type(input, 'München')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /location search failed/i,
+    )
+    expect(screen.queryByText('provider secret')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Aydın, Türkiye' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('selecting another same-named location invalidates the previous forecast', async () => {
+    const { user } = await enterLivePage()
+    const input = await selectLocation(user)
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+    await screen.findByRole('heading', { name: 'Aydın, Türkiye' })
+
+    await user.clear(input)
+    await user.type(input, 'Aydın')
+    await user.click(
+      await screen.findByRole('option', { name: aydinOhio.displayLabel }),
+    )
+
+    expect(input).toHaveValue(aydinOhio.displayLabel)
+    expect(
+      screen.queryByRole('heading', { name: 'Aydın, Türkiye' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText(`Ready to retrieve weather for ${aydinOhio.displayLabel}.`),
+    ).toBeInTheDocument()
+  })
+
+  it('aborts a pending forecast on input edit and ignores its later success', async () => {
+    let resolveForecast: ((value: Response) => void) | undefined
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { fetchMock, user } = await enterLivePage((input) => {
+      if (input.toString().includes('/forecast/coordinates?')) {
+        return new Promise<Response>((resolve) => {
+          resolveForecast = resolve
+        })
+      }
+      return baseFetch(input)
+    })
+    const input = await selectLocation(user)
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Loading live forecast' }),
+    ).toBeInTheDocument()
+    const forecastCall = callsFor(fetchMock, '/forecast/coordinates?')[0]
+
+    await user.type(input, 'x')
+    expect((forecastCall[1]?.signal as AbortSignal).aborted).toBe(true)
+    expect(
+      screen.queryByRole('heading', { name: 'Loading live forecast' }),
+    ).not.toBeInTheDocument()
+
+    resolveForecast?.(
+      new Response(JSON.stringify(forecast('Stale Aydın')), { status: 200 }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: /Stale Aydın/ }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByText(/live forecast unavailable/i)).not.toBeInTheDocument()
+    expect(consoleError).not.toHaveBeenCalled()
+  })
+
+  it('aborts pending forecast transport and prevents updates after unmount', async () => {
+    let resolveForecast: ((value: Response) => void) | undefined
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { fetchMock, user } = await enterLivePage((input) => {
+      if (input.toString().includes('/forecast/coordinates?')) {
+        return new Promise<Response>((resolve) => {
+          resolveForecast = resolve
+        })
+      }
+      return baseFetch(input)
+    })
+    await selectLocation(user)
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+    const forecastCall = callsFor(fetchMock, '/forecast/coordinates?')[0]
+
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect((forecastCall[1]?.signal as AbortSignal).aborted).toBe(true)
+    resolveForecast?.(
+      new Response(JSON.stringify(forecast('Unmounted stale result')), {
+        status: 200,
+      }),
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Unmounted stale result/)).not.toBeInTheDocument()
+    expect(consoleError).not.toHaveBeenCalled()
+  })
+
+  it('day changes abort pending work and bind the winning response to new days', async () => {
+    let resolveOlder: ((value: Response) => void) | undefined
+    let attempts = 0
+    const { fetchMock, user } = await enterLivePage((input) => {
+      if (input.toString().includes('/forecast/coordinates?')) {
+        attempts += 1
+        if (attempts === 1) {
+          return new Promise<Response>((resolve) => {
+            resolveOlder = resolve
+          })
+        }
+        return response(forecast('Aydın', 1))
+      }
+      return baseFetch(input)
+    })
+    await selectLocation(user)
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+    const olderCall = callsFor(fetchMock, '/forecast/coordinates?')[0]
+
+    await user.selectOptions(screen.getByLabelText('Forecast length'), '1')
+    expect((olderCall[1]?.signal as AbortSignal).aborted).toBe(true)
+    expect(
+      screen.queryByRole('heading', { name: 'Loading live forecast' }),
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+
+    resolveOlder?.(
+      new Response(JSON.stringify(forecast('Stale three-day', 3)), {
+        status: 200,
+      }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: /Stale three-day/ }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(callsFor(fetchMock, '/forecast/coordinates?')[1][0].toString())
+      .toContain('days=1')
+  })
+
+  it('older forecast failure cannot replace a newer success or clear its loading state', async () => {
+    let rejectOlder: ((reason: unknown) => void) | undefined
+    let resolveNewer: ((value: Response) => void) | undefined
+    let attempts = 0
+    const { user } = await enterLivePage((input) => {
+      if (input.toString().includes('/forecast/coordinates?')) {
+        attempts += 1
+        return attempts === 1
+          ? new Promise<Response>((_, reject) => {
+              rejectOlder = reject
+            })
+          : new Promise<Response>((resolve) => {
+              resolveNewer = resolve
+            })
+      }
+      return baseFetch(input)
+    })
+    await selectLocation(user)
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+    await user.selectOptions(screen.getByLabelText('Forecast length'), '1')
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+
+    rejectOlder?.(new Error('stale provider detail'))
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: 'Loading live forecast' }),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    resolveNewer?.(
+      new Response(JSON.stringify(forecast('Current Aydın', 1)), {
+        status: 200,
+      }),
+    )
+    expect(
+      await screen.findByRole('heading', { name: 'Current Aydın, Türkiye' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('stale provider detail')).not.toBeInTheDocument()
+  })
+
+  it('retries a recoverable failure with current selected coordinates and days', async () => {
+    let attempts = 0
+    const { fetchMock, user } = await enterLivePage((input) => {
+      if (input.toString().includes('/forecast/coordinates?')) {
+        attempts += 1
+        return attempts === 1
+          ? response({ detail: 'internal provider detail' }, 503)
+          : response(forecast('Aydın', 2))
+      }
+      return baseFetch(input)
+    })
+    await selectLocation(user)
+    await user.selectOptions(screen.getByLabelText('Forecast length'), '2')
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /provider is unavailable/i,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Retry forecast' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
+    ).toBeInTheDocument()
+    const retryUrl = callsFor(fetchMock, '/forecast/coordinates?')[1][0].toString()
+    expect(retryUrl).toContain(
+      `latitude=${aydin.latitude}&longitude=${aydin.longitude}&days=2`,
+    )
+    expect(retryUrl).not.toContain('city=')
+    expect(screen.queryByText('internal provider detail')).not.toBeInTheDocument()
+  })
+
+  it('clearing below the search minimum aborts pending search without an error', async () => {
+    const { fetchMock, user } = await enterLivePage((input) => {
+      if (input.toString().includes('/locations?')) {
+        return new Promise<Response>(() => undefined)
+      }
+      return baseFetch(input)
+    })
+    const input = await searchFor(user, 'Aydın')
+    await screen.findByText('Searching locations…')
+    const searchCall = callsFor(fetchMock, '/locations?')[0]
+
+    await user.clear(input)
+    await user.type(input, 'A')
+
+    expect((searchCall[1]?.signal as AbortSignal).aborted).toBe(true)
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
   it('prevents synchronous duplicate coordinate submissions', async () => {
     let resolveForecast: ((value: Response) => void) | undefined
     const { fetchMock, user } = await enterLivePage((input) => {
@@ -407,13 +737,16 @@ describe('ExternalWeatherForecastPage', () => {
     expect(callsFor(fetchMock, '/forecast/coordinates?')).toHaveLength(1)
     expect(
       screen.getByRole('button', { name: /loading live forecast/i }),
-    ).toBeInTheDocument()
+    ).toBeDisabled()
     resolveForecast?.(
       new Response(JSON.stringify(forecast()), { status: 200 }),
     )
     expect(
       await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Get live forecast' }),
+    ).toBeEnabled()
   })
 
   it('shows safe forecast errors and logs out through the existing 401 flow', async () => {

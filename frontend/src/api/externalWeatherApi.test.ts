@@ -95,19 +95,22 @@ describe('external weather API', () => {
       new Response(JSON.stringify(forecast()), { status: 200 }),
     )
     const client = new ApiClient(apiBaseUrl, () => 'test-token')
+    const controller = new AbortController()
 
     await getExternalWeatherForecastByCoordinates(
       client,
       37.8450123456789,
       27.839987654321,
       2,
+      controller.signal,
     )
 
-    const [url] = fetchMock.mock.calls[0]
+    const [url, options] = fetchMock.mock.calls[0]
     expect(url.toString()).toBe(
       `${apiBaseUrl}/api/weather/external/forecast/coordinates?latitude=37.8450123456789&longitude=27.839987654321&days=2`,
     )
     expect(url.toString()).not.toContain('city=')
+    expect(options?.signal).toBe(controller.signal)
   })
 
   it('decodes ordered structured locations and rejects unsafe contracts', () => {

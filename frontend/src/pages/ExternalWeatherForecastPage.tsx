@@ -21,6 +21,22 @@ import { WeatherConditionIcon } from '../components/WeatherConditionIcon'
 
 type ForecastDays = 1 | 2 | 3
 type SearchState = 'idle' | 'loading' | 'results' | 'empty' | 'error'
+interface ForecastOwner {
+  locationKey: string
+  latitude: number
+  longitude: number
+  days: ForecastDays
+}
+
+type ForecastState =
+  | { status: 'idle' }
+  | { status: 'loading'; owner: ForecastOwner; requestId: number }
+  | {
+      status: 'success'
+      owner: ForecastOwner
+      response: ExternalWeatherForecast
+    }
+  | { status: 'error'; owner: ForecastOwner; message: string }
 
 const minimumSearchLength = 2
 const searchDebounceMilliseconds = 350
@@ -88,6 +104,44 @@ function locationKey(
       + `|${index}`
 }
 
+function selectedLocationKey(location: ExternalWeatherLocation) {
+  return location.providerLocationId !== null
+    ? `provider-${location.providerLocationId}`
+    : [
+        location.name,
+        location.region ?? '',
+        location.country,
+        location.latitude,
+        location.longitude,
+      ].join('|')
+}
+
+function createForecastOwner(
+  location: ExternalWeatherLocation,
+  days: ForecastDays,
+): ForecastOwner {
+  return {
+    locationKey: selectedLocationKey(location),
+    latitude: location.latitude,
+    longitude: location.longitude,
+    days,
+  }
+}
+
+function ownerMatches(
+  owner: ForecastOwner,
+  location: ExternalWeatherLocation | null,
+  days: ForecastDays,
+) {
+  return (
+    location !== null &&
+    owner.locationKey === selectedLocationKey(location) &&
+    owner.latitude === location.latitude &&
+    owner.longitude === location.longitude &&
+    owner.days === days
+  )
+}
+
 export function ExternalWeatherForecastPage() {
   const { apiClient, logout } = useAuth()
   const listboxId = useId()
@@ -100,15 +154,18 @@ export function ExternalWeatherForecastPage() {
   const [activeOptionIndex, setActiveOptionIndex] = useState(-1)
   const [days, setDays] = useState<ForecastDays>(3)
   const [validationError, setValidationError] = useState<string | null>(null)
-  const [requestError, setRequestError] = useState<string | null>(null)
-  const [result, setResult] = useState<ExternalWeatherForecast | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [forecastState, setForecastState] = useState<ForecastState>({
+    status: 'idle',
+  })
   const [announcement, setAnnouncement] = useState('')
   const mounted = useRef(true)
   const requestSequence = useRef(0)
   const searchSequence = useRef(0)
   const profileSequence = useRef(0)
-  const activeSubmissionKeys = useRef(new Set<string>())
+  const activeSubmissionKeys = useRef(new Map<string, number>())
+  const selectedLocationRef = useRef<ExternalWeatherLocation | null>(null)
+  const daysRef = useRef<ForecastDays>(3)
+  const forecastController = useRef<AbortController | null>(null)
   const locationInputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<HTMLDivElement>(null)
   const resultsHeadingRef = useRef<HTMLHeadingElement>(null)
@@ -119,6 +176,9 @@ export function ExternalWeatherForecastPage() {
         requestSequence.current += 1
         searchSequence.current += 1
         profileSequence.current += 1
+        forecastController.current?.abort()
+        forecastController.current = null
+        activeSubmissionKeys.current.clear()
         logout()
         return true
       }
@@ -130,6 +190,7 @@ export function ExternalWeatherForecastPage() {
 
   useEffect(() => {
     mounted.current = true
+    const submissionKeys = activeSubmissionKeys.current
     const profileRequestId = ++profileSequence.current
 
     void getProfile(apiClient)
@@ -158,6 +219,9 @@ export function ExternalWeatherForecastPage() {
       requestSequence.current += 1
       searchSequence.current += 1
       profileSequence.current += 1
+      forecastController.current?.abort()
+      forecastController.current = null
+      submissionKeys.clear()
     }
   }, [apiClient, handleUnauthorized])
 
@@ -242,6 +306,11 @@ export function ExternalWeatherForecastPage() {
 
   function chooseLocation(location: ExternalWeatherLocation) {
     searchSequence.current += 1
+    requestSequence.current += 1
+    forecastController.current?.abort()
+    forecastController.current = null
+    activeSubmissionKeys.current.clear()
+    selectedLocationRef.current = location
     setSelectedLocation(location)
     setLocationText(location.displayLabel)
     setValidationError(null)
@@ -249,22 +318,37 @@ export function ExternalWeatherForecastPage() {
     setSearchState('idle')
     setIsAutocompleteOpen(false)
     setActiveOptionIndex(-1)
+    setForecastState({ status: 'idle' })
     setAnnouncement(`Selected ${location.displayLabel}.`)
     locationInputRef.current?.focus()
   }
 
   function handleLocationChange(value: string) {
     requestSequence.current += 1
+    forecastController.current?.abort()
+    forecastController.current = null
+    activeSubmissionKeys.current.clear()
+    selectedLocationRef.current = null
     setLocationText(value)
     setSelectedLocation(null)
     setValidationError(null)
-    setRequestError(null)
-    setIsLoading(false)
+    setForecastState({ status: 'idle' })
     setAnnouncement('')
     setLocations([])
     setSearchState('idle')
     setIsAutocompleteOpen(false)
     setActiveOptionIndex(-1)
+  }
+
+  function handleDaysChange(nextDays: ForecastDays) {
+    requestSequence.current += 1
+    forecastController.current?.abort()
+    forecastController.current = null
+    activeSubmissionKeys.current.clear()
+    daysRef.current = nextDays
+    setDays(nextDays)
+    setForecastState({ status: 'idle' })
+    setAnnouncement('')
   }
 
   function handleComboboxKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -309,54 +393,70 @@ export function ExternalWeatherForecastPage() {
     }
   }
 
-  async function submitForecast(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function loadForecast() {
+    const currentLocation = selectedLocationRef.current
+    const currentDays = daysRef.current
 
-    if (
-      !selectedLocation ||
-      locationText !== selectedLocation.displayLabel
-    ) {
+    if (!currentLocation || locationText !== currentLocation.displayLabel) {
       setValidationError('Select a location from the suggestions.')
-      setRequestError(null)
+      setForecastState({ status: 'idle' })
       locationInputRef.current?.focus()
       return
     }
 
-    if (days !== 1 && days !== 2 && days !== 3) {
-      setRequestError('Choose a forecast length from 1 to 3 days.')
+    if (currentDays !== 1 && currentDays !== 2 && currentDays !== 3) {
+      setForecastState({
+        status: 'error',
+        owner: createForecastOwner(currentLocation, currentDays),
+        message: 'Choose a forecast length from 1 to 3 days.',
+      })
       return
     }
 
+    const owner = createForecastOwner(currentLocation, currentDays)
     const submissionKey = [
-      selectedLocation.latitude,
-      selectedLocation.longitude,
-      days,
+      owner.locationKey,
+      owner.latitude,
+      owner.longitude,
+      owner.days,
     ].join('|')
 
     if (activeSubmissionKeys.current.has(submissionKey)) {
       return
     }
 
-    activeSubmissionKeys.current.add(submissionKey)
+    forecastController.current?.abort()
+    forecastController.current = new AbortController()
+    const controller = forecastController.current
     const requestId = ++requestSequence.current
+    activeSubmissionKeys.current.set(submissionKey, requestId)
     setValidationError(null)
-    setRequestError(null)
     setAnnouncement('')
-    setIsLoading(true)
+    setForecastState({ status: 'loading', owner, requestId })
 
     try {
       const response = await getExternalWeatherForecastByCoordinates(
         apiClient,
-        selectedLocation.latitude,
-        selectedLocation.longitude,
-        days,
+        owner.latitude,
+        owner.longitude,
+        owner.days,
+        controller.signal,
       )
 
-      if (!mounted.current || requestSequence.current !== requestId) {
+      if (
+        !mounted.current ||
+        requestSequence.current !== requestId ||
+        controller.signal.aborted ||
+        !ownerMatches(
+          owner,
+          selectedLocationRef.current,
+          daysRef.current,
+        )
+      ) {
         return
       }
 
-      setResult(response)
+      setForecastState({ status: 'success', owner, response })
       setAnnouncement(
         `Live forecast loaded for ${response.cityName}, ${response.country}.`,
       )
@@ -369,17 +469,37 @@ export function ExternalWeatherForecastPage() {
       if (
         mounted.current &&
         requestSequence.current === requestId &&
+        !controller.signal.aborted &&
+        ownerMatches(
+          owner,
+          selectedLocationRef.current,
+          daysRef.current,
+        ) &&
         !handleUnauthorized(caughtError)
       ) {
-        setRequestError(forecastFailureMessage(caughtError))
+        setForecastState({
+          status: 'error',
+          owner,
+          message: forecastFailureMessage(caughtError),
+        })
       }
     } finally {
-      activeSubmissionKeys.current.delete(submissionKey)
+      if (activeSubmissionKeys.current.get(submissionKey) === requestId) {
+        activeSubmissionKeys.current.delete(submissionKey)
+      }
 
-      if (mounted.current && requestSequence.current === requestId) {
-        setIsLoading(false)
+      if (
+        requestSequence.current === requestId &&
+        forecastController.current === controller
+      ) {
+        forecastController.current = null
       }
     }
+  }
+
+  function submitForecast(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    void loadForecast()
   }
 
   const activeOptionId =
@@ -388,6 +508,19 @@ export function ExternalWeatherForecastPage() {
     activeOptionIndex >= 0
       ? `${listboxId}-option-${activeOptionIndex}`
       : undefined
+  const currentForecast =
+    forecastState.status === 'success' &&
+    ownerMatches(forecastState.owner, selectedLocation, days)
+      ? forecastState.response
+      : null
+  const isForecastLoading =
+    forecastState.status === 'loading' &&
+    ownerMatches(forecastState.owner, selectedLocation, days)
+  const currentForecastError =
+    forecastState.status === 'error' &&
+    ownerMatches(forecastState.owner, selectedLocation, days)
+      ? forecastState.message
+      : null
 
   return (
     <div className="weather-dashboard live-forecast-page">
@@ -503,7 +636,7 @@ export function ExternalWeatherForecastPage() {
               name="days"
               value={days}
               onChange={(event) =>
-                setDays(Number(event.target.value) as ForecastDays)
+                handleDaysChange(Number(event.target.value) as ForecastDays)
               }
             >
               <option value={1}>1 day</option>
@@ -512,34 +645,55 @@ export function ExternalWeatherForecastPage() {
             </select>
           </div>
 
-          <button type="submit">
-            {isLoading ? 'Loading live forecast…' : 'Get live forecast'}
+          <button type="submit" disabled={isForecastLoading}>
+            {isForecastLoading ? 'Loading live forecast…' : 'Get live forecast'}
           </button>
         </form>
 
         <div className="live-forecast-announcement" aria-live="polite">
-          {isLoading ? 'Contacting the live weather provider.' : announcement}
+          {isForecastLoading
+            ? 'Contacting the live weather provider.'
+            : announcement}
         </div>
 
-        {requestError ? (
+        {currentForecastError ? (
           <section className="dashboard-state live-forecast-error">
             <h2>Live forecast unavailable</h2>
-            <p role="alert">{requestError}</p>
+            <p role="alert">{currentForecastError}</p>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => void loadForecast()}
+            >
+              Retry forecast
+            </button>
           </section>
         ) : null}
 
-        {!result && !requestError && !isLoading ? (
+        {isForecastLoading ? (
+          <section className="dashboard-state" aria-live="polite">
+            <h2>Loading live forecast</h2>
+            <p>
+              Retrieving weather for {selectedLocation?.displayLabel}.
+            </p>
+          </section>
+        ) : null}
+
+        {!currentForecast && !currentForecastError && !isForecastLoading ? (
           <section className="dashboard-state">
             <h2>Choose a location to begin</h2>
-            <p>No live forecast request is made until you select a location.</p>
+            <p>
+              {selectedLocation
+                ? `Ready to retrieve weather for ${selectedLocation.displayLabel}.`
+                : 'No live forecast request is made until you select a location.'}
+            </p>
           </section>
         ) : null}
 
-        {result ? (
+        {currentForecast ? (
           <section
             className="live-forecast-results"
             aria-labelledby="live-forecast-results-title"
-            aria-busy={isLoading}
           >
             <div className="section-heading">
               <div>
@@ -549,11 +703,12 @@ export function ExternalWeatherForecastPage() {
                   id="live-forecast-results-title"
                   tabIndex={-1}
                 >
-                  {result.cityName}, {result.country}
+                  {currentForecast.cityName}, {currentForecast.country}
                 </h2>
               </div>
               <span>
-                {result.days.length} day{result.days.length === 1 ? '' : 's'}
+                {currentForecast.days.length} day
+                {currentForecast.days.length === 1 ? '' : 's'}
               </span>
             </div>
             <p className="live-forecast-source-note">
@@ -561,7 +716,7 @@ export function ExternalWeatherForecastPage() {
               weather record.
             </p>
             <ol className="live-forecast-list">
-              {result.days.map((day) => (
+              {currentForecast.days.map((day) => (
                 <li key={day.date}>
                   <article>
                     <div className="live-forecast-card-heading">
