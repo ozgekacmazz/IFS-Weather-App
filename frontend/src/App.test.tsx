@@ -36,6 +36,16 @@ function profileResponse() {
 }
 
 function dashboardResponse(url: string) {
+  if (url.includes('/api/admin/users?')) {
+    return {
+      items: [],
+      pageNumber: 1,
+      pageSize: 20,
+      totalCount: 0,
+      totalPages: 0,
+    }
+  }
+
   if (url.endsWith('/api/profile')) {
     return profileResponse()
   }
@@ -139,6 +149,30 @@ describe('authentication flow', () => {
     ).toBeInTheDocument()
   })
 
+  it('redirects an anonymous Admin users visitor to login', async () => {
+    renderApp('/app/admin/users')
+
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('returns an Admin to the exact safe requested users route after login', async () => {
+    await submitLogin(UserRoles.Admin, '/app/admin/users')
+
+    expect(
+      await screen.findByRole('heading', { name: 'User management' }),
+    ).toBeInTheDocument()
+  })
+
+  it('rejects an arbitrary requested Admin path after login', async () => {
+    await submitLogin(UserRoles.Admin, '/app/admin/not-approved')
+
+    expect(
+      await screen.findByText('Your administration workspace is ready.'),
+    ).toBeInTheDocument()
+  })
+
   it('redirects an anonymous visitor away from a protected route', async () => {
     renderApp('/app/admin')
 
@@ -191,6 +225,34 @@ describe('authentication flow', () => {
     expect(
       screen.queryByText('Your administration workspace is ready.'),
     ).not.toBeInTheDocument()
+  })
+
+  it('redirects a User away from Admin user management', async () => {
+    await submitLogin(UserRoles.User, '/app/admin/users')
+
+    expect(
+      await screen.findByRole('heading', { name: /your weather, at a glance/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('lets an Admin navigate between overview and users and sign out', async () => {
+    const user = await submitLogin(UserRoles.Admin)
+    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    await user.click(screen.getByRole('link', { name: 'Users' }))
+    expect(
+      await screen.findByRole('heading', { name: 'User management' }),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: 'Overview' }))
+    expect(
+      await screen.findByText('Your administration workspace is ready.'),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
   })
 
   it('redirects an authenticated user away from login and registration', async () => {
