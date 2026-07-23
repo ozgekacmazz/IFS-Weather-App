@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
@@ -15,7 +21,37 @@ const authentication = {
   expiresAtUtc: '2099-07-22T12:00:00Z',
 }
 
-function profile(defaultCity: string | null = 'Istanbul') {
+const aydin = {
+  providerLocationId: 42,
+  name: 'Aydın',
+  region: 'Aydin',
+  country: 'Türkiye',
+  latitude: 37.8450123456789,
+  longitude: 27.839987654321,
+  displayLabel: 'Aydın, Aydin, Türkiye',
+}
+
+const aydinOhio = {
+  providerLocationId: 84,
+  name: 'Aydın',
+  region: 'Ohio',
+  country: 'United States',
+  latitude: 40.123456,
+  longitude: -82.654321,
+  displayLabel: 'Aydın, Ohio, United States',
+}
+
+const izmir = {
+  providerLocationId: 43,
+  name: 'İzmir',
+  region: 'Izmir',
+  country: 'Türkiye',
+  latitude: 38.423734,
+  longitude: 27.142826,
+  displayLabel: 'İzmir, Izmir, Türkiye',
+}
+
+function profile(defaultCity: string | null = null) {
   return {
     userId: 7,
     firstName: 'Test',
@@ -29,7 +65,7 @@ function profile(defaultCity: string | null = 'Istanbul') {
   }
 }
 
-function forecast(city = 'Ankara', count = 3) {
+function forecast(city = 'Aydın', count = 3) {
   return {
     cityName: city,
     country: 'Türkiye',
@@ -67,11 +103,45 @@ function response(value: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(value), { status }))
 }
 
+function baseFetch(
+  input: RequestInfo | URL,
+  defaultCity: string | null = null,
+) {
+  const url = input.toString()
+  if (url.endsWith('/api/auth/login')) return response(authentication)
+  if (url.endsWith('/api/profile')) return response(profile(defaultCity))
+  if (url.endsWith('/api/weather/today')) {
+    return response({
+      weatherId: 1,
+      weatherDate: '2026-07-23',
+      cityName: 'Istanbul',
+      temperature: 24,
+      mainStatus: 'Clear',
+      updatedAt: '2026-07-23T08:00:00Z',
+    })
+  }
+  if (url.endsWith('/api/weather/forecast')) {
+    return response({
+      cityName: 'Istanbul',
+      startDate: '2026-07-20',
+      requestedDays: 7,
+      items: [],
+    })
+  }
+  if (url.includes('/api/weather/external/locations?')) {
+    return response([aydin, aydinOhio])
+  }
+  if (url.includes('/api/weather/external/forecast/coordinates?')) {
+    return response(forecast())
+  }
+  throw new Error(`Unexpected test request: ${url}`)
+}
+
 async function enterLivePage(
   implementation: (
     input: RequestInfo | URL,
     init?: RequestInit,
-  ) => Promise<Response>,
+  ) => Promise<Response> = (input) => baseFetch(input),
 ) {
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(implementation)
   const user = userEvent.setup()
@@ -91,215 +161,283 @@ async function enterLivePage(
   return { fetchMock, user }
 }
 
-function successfulFetch(input: RequestInfo | URL) {
-  const url = input.toString()
-  if (url.endsWith('/api/auth/login')) return response(authentication)
-  if (url.endsWith('/api/profile')) return response(profile())
-  if (url.includes('/api/weather/external/forecast?')) {
-    return response(forecast())
-  }
-  if (url.endsWith('/api/weather/today')) {
-    return response({
-      weatherId: 1,
-      weatherDate: '2026-07-23',
-      cityName: 'Istanbul',
-      temperature: 24,
-      mainStatus: 'Clear',
-      updatedAt: '2026-07-23T08:00:00Z',
-    })
-  }
-  return response({
-    cityName: 'Istanbul',
-    startDate: '2026-07-20',
-    requestedDays: 7,
-    items: [],
-  })
+async function searchFor(
+  user: ReturnType<typeof userEvent.setup>,
+  value: string,
+) {
+  const input = screen.getByRole('combobox', { name: 'Location' })
+  await user.clear(input)
+  await user.type(input, value)
+  return input
+}
+
+async function selectLocation(
+  user: ReturnType<typeof userEvent.setup>,
+  query = 'Aydın',
+  label = aydin.displayLabel,
+) {
+  const input = await searchFor(user, query)
+  const option = await screen.findByRole('option', { name: label })
+  await user.click(option)
+  return input
+}
+
+function callsFor(fetchMock: ReturnType<typeof vi.spyOn>, fragment: string) {
+  return fetchMock.mock.calls.filter((call: [RequestInfo | URL, RequestInit?]) =>
+    String(call[0]).includes(fragment),
+  )
 }
 
 describe('ExternalWeatherForecastPage', () => {
-  it('prefills the profile city without automatically requesting live data', async () => {
-    const { fetchMock } = await enterLivePage(successfulFetch)
-    expect(await screen.findByLabelText('City')).toHaveValue('Istanbul')
-    expect(screen.getByText(/no live provider request is made/i)).toBeInTheDocument()
-    expect(
-      fetchMock.mock.calls.some(([input]) =>
-        input.toString().includes('/api/weather/external/forecast?'),
-      ),
-    ).toBe(false)
-  })
-
-  it.each([1, 2, 3])('requests and renders a valid %s-day forecast', async (days) => {
-    const { fetchMock, user } = await enterLivePage((input) => {
-      if (input.toString().includes('/api/weather/external/forecast?')) {
-        return response(forecast('Ankara', days))
-      }
-      return successfulFetch(input)
-    })
-    const city = screen.getByLabelText('City')
-    await user.clear(city)
-    await user.type(city, ' Ankara ')
-    await user.selectOptions(screen.getByLabelText('Forecast length'), String(days))
-    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
-
-    expect(
-      await screen.findByRole('heading', { name: 'Ankara, Türkiye' }),
-    ).toBeInTheDocument()
-    expect(screen.getAllByRole('listitem')).toHaveLength(days)
-    expect(screen.getByText(/24[.,]5 °C/)).toBeInTheDocument()
-    const call = fetchMock.mock.calls.find(([input]) =>
-      input.toString().includes('/api/weather/external/forecast?'),
+  it('prefills the saved city for search without requesting a forecast', async () => {
+    const { fetchMock } = await enterLivePage((input) =>
+      baseFetch(input, 'İzmir'),
     )
-    expect(call?.[0].toString()).toContain(`city=Ankara&days=${days}`)
+
+    expect(await screen.findByRole('combobox', { name: 'Location' })).toHaveValue(
+      'İzmir',
+    )
+    expect(screen.getByText(/no live forecast request is made/i)).toBeInTheDocument()
+    expect(callsFor(fetchMock, '/forecast/coordinates?')).toHaveLength(0)
   })
 
-  it.each([
-    ['', 'City is required.'],
-    ['A', 'City must contain at least 2 characters.'],
-    ['A'.repeat(101), 'City must be 100 characters or fewer.'],
-  ])('blocks invalid city input', async (value, message) => {
-    const { fetchMock, user } = await enterLivePage(successfulFetch)
-    const city = screen.getByLabelText('City')
-    await user.clear(city)
-    if (value) fireEvent.change(city, { target: { value } })
-    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+  it('does not search empty, whitespace-only, or one-character input', async () => {
+    const { fetchMock, user } = await enterLivePage()
+    const input = screen.getByRole('combobox', { name: 'Location' })
 
-    expect(screen.getByRole('alert')).toHaveTextContent(message)
-    expect(city).toHaveFocus()
-    expect(
-      fetchMock.mock.calls.some(([input]) =>
-        input.toString().includes('/api/weather/external/forecast?'),
-      ),
-    ).toBe(false)
+    await user.type(input, ' ')
+    await user.clear(input)
+    await user.type(input, 'A')
+    await new Promise((resolve) => window.setTimeout(resolve, 450))
+
+    expect(callsFor(fetchMock, '/locations?')).toHaveLength(0)
   })
 
-  it('prevents synchronous duplicate submissions', async () => {
-    let resolveForecast: ((value: Response) => void) | undefined
+  it('debounces Unicode search, shows loading, and preserves provider order', async () => {
+    let resolveSearch: ((value: Response) => void) | undefined
     const { fetchMock, user } = await enterLivePage((input) => {
-      if (input.toString().includes('/api/weather/external/forecast?')) {
+      if (input.toString().includes('/locations?')) {
         return new Promise<Response>((resolve) => {
-          resolveForecast = resolve
+          resolveSearch = resolve
         })
       }
-      return successfulFetch(input)
+      return baseFetch(input)
     })
-    const form = screen.getByRole('button', { name: 'Get live forecast' }).closest('form')!
-    fireEvent.submit(form)
-    fireEvent.submit(form)
-    expect(
-      fetchMock.mock.calls.filter(([input]) =>
-        input.toString().includes('/api/weather/external/forecast?'),
-      ),
-    ).toHaveLength(1)
-    expect(screen.getByRole('button', { name: /loading live forecast/i })).toBeInTheDocument()
-    resolveForecast?.(new Response(JSON.stringify(forecast()), { status: 200 }))
-    expect(await screen.findByRole('heading', { name: 'Ankara, Türkiye' })).toBeInTheDocument()
-    void user
+
+    await searchFor(user, 'Aydın')
+    expect(callsFor(fetchMock, '/locations?')).toHaveLength(0)
+    expect(await screen.findByText('Searching locations…')).toBeInTheDocument()
+
+    resolveSearch?.(
+      new Response(JSON.stringify([aydin, aydinOhio]), { status: 200 }),
+    )
+    const listbox = await screen.findByRole('listbox')
+    const options = await within(listbox).findAllByRole(
+      'option',
+    )
+    expect(options.map((option) => option.textContent)).toEqual([
+      aydin.displayLabel,
+      aydinOhio.displayLabel,
+    ])
+    const searchUrl = callsFor(fetchMock, '/locations?')[0][0].toString()
+    expect(searchUrl).toContain('query=Ayd%C4%B1n')
   })
 
-  it('lets a newer distinct request win over an older delayed response', async () => {
-    let resolveOlder: ((value: Response) => void) | undefined
+  it('distinguishes no results from a search failure', async () => {
+    let attempts = 0
     const { user } = await enterLivePage((input) => {
+      if (input.toString().includes('/locations?')) {
+        attempts += 1
+        return attempts === 1 ? response([]) : response({ detail: 'secret' }, 503)
+      }
+      return baseFetch(input)
+    })
+
+    await searchFor(user, 'Missing')
+    expect(await screen.findByText('No matching locations found.')).toBeInTheDocument()
+    await searchFor(user, 'München')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /location search failed/i,
+    )
+    expect(screen.queryByText('No matching locations found.')).not.toBeInTheDocument()
+    expect(screen.queryByText('secret')).not.toBeInTheDocument()
+  })
+
+  it('prevents an older search response from replacing newer results', async () => {
+    let resolveOlder: ((value: Response) => void) | undefined
+    const { fetchMock, user } = await enterLivePage((input) => {
       const url = input.toString()
-      if (url.includes('city=Istanbul')) {
+      if (url.includes('query=Ayd')) {
         return new Promise<Response>((resolve) => {
           resolveOlder = resolve
         })
       }
-      if (url.includes('city=Ankara')) return response(forecast('Ankara', 1))
-      return successfulFetch(input)
+      if (url.includes('query=%C4%B0zmir')) return response([izmir])
+      return baseFetch(input)
     })
 
-    await user.selectOptions(screen.getByLabelText('Forecast length'), '1')
-    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
-    const city = screen.getByLabelText('City')
-    await user.clear(city)
-    await user.type(city, 'Ankara')
-    await user.click(screen.getByRole('button', { name: /loading live forecast/i }))
+    await searchFor(user, 'Aydın')
+    await screen.findByText('Searching locations…')
+    await searchFor(user, 'İzmir')
     expect(
-      await screen.findByRole('heading', { name: 'Ankara, Türkiye' }),
+      await screen.findByRole('option', { name: izmir.displayLabel }),
     ).toBeInTheDocument()
+    const olderCall = callsFor(fetchMock, 'query=Ayd')[0]
+    expect((olderCall[1]?.signal as AbortSignal).aborted).toBe(true)
 
-    resolveOlder?.(
-      new Response(JSON.stringify(forecast('Istanbul', 1)), { status: 200 }),
-    )
+    resolveOlder?.(new Response(JSON.stringify([aydin]), { status: 200 }))
     await waitFor(() =>
       expect(
-        screen.getByRole('heading', { name: 'Ankara, Türkiye' }),
+        screen.getByRole('option', { name: izmir.displayLabel }),
       ).toBeInTheDocument(),
     )
     expect(
-      screen.queryByRole('heading', { name: 'Istanbul, Türkiye' }),
+      screen.queryByRole('option', { name: aydin.displayLabel }),
     ).not.toBeInTheDocument()
   })
 
-  it.each([
-    [400, /check the city and forecast length/i],
-    [404, /city could not be found/i],
-    [429, /request limit has been reached/i],
-    [500, /temporarily unavailable/i],
-    [503, /provider is unavailable/i],
-  ])('shows a safe message for status %s and preserves confirmed data', async (status, message) => {
-    let attempts = 0
-    const { user } = await enterLivePage((input) => {
-      if (input.toString().includes('/api/weather/external/forecast?')) {
-        attempts += 1
-        return attempts === 1 ? response(forecast()) : response({ detail: 'secret' }, status)
-      }
-      return successfulFetch(input)
-    })
-    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
-    await screen.findByRole('heading', { name: 'Ankara, Türkiye' })
-    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(message)
-    expect(screen.getByRole('heading', { name: 'Ankara, Türkiye' })).toBeInTheDocument()
-    expect(screen.queryByText('secret')).not.toBeInTheDocument()
-  })
+  it('supports Arrow navigation, Enter selection, and Escape dismissal', async () => {
+    const { user } = await enterLivePage()
+    const input = await searchFor(user, 'Aydın')
+    await screen.findByRole('option', { name: aydin.displayLabel })
 
-  it('handles network and malformed successful responses safely', async () => {
-    let attempts = 0
-    const { user } = await enterLivePage((input) => {
-      if (input.toString().includes('/api/weather/external/forecast?')) {
-        attempts += 1
-        return attempts === 1
-          ? Promise.reject(new Error('internal network detail'))
-          : response({ ...forecast(), days: [{ invalid: true }] })
-      }
-      return successfulFetch(input)
-    })
-    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be loaded/i)
-    expect(screen.queryByText(/internal network detail/i)).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be loaded/i)
-  })
-
-  it('logs out through the existing flow on 401', async () => {
-    const { user } = await enterLivePage((input) =>
-      input.toString().includes('/api/weather/external/forecast?')
-        ? response({}, 401)
-        : successfulFetch(input),
+    expect(input).toHaveAttribute('aria-expanded', 'true')
+    expect(input).toHaveAttribute('aria-autocomplete', 'list')
+    expect(screen.getByRole('listbox')).toHaveAccessibleName(
+      'Location suggestions',
     )
-    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
-    expect(
-      await screen.findByRole('heading', { name: /sign in to your account/i }),
-    ).toBeInTheDocument()
+
+    await user.keyboard('{ArrowDown}{ArrowUp}{Enter}')
+    expect(input).toHaveValue(aydin.displayLabel)
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+
+    await user.type(input, 'x')
+    await screen.findByRole('option', { name: aydin.displayLabel })
+    await user.keyboard('{Escape}')
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
-  it('does not update state after unmount during a request', async () => {
+  it('supports mouse selection and closes the dropdown', async () => {
+    const { user } = await enterLivePage()
+    const input = await selectLocation(user)
+
+    expect(input).toHaveValue(aydin.displayLabel)
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(screen.getByText(`Selected ${aydin.displayLabel}.`)).toBeInTheDocument()
+  })
+
+  it.each([1, 2, 3])(
+    'uses selected coordinates and renders a valid %s-day forecast',
+    async (days) => {
+      const { fetchMock, user } = await enterLivePage((input) => {
+        if (input.toString().includes('/forecast/coordinates?')) {
+          return response(forecast('Aydın', days))
+        }
+        return baseFetch(input)
+      })
+      await selectLocation(user)
+      await user.selectOptions(
+        screen.getByLabelText('Forecast length'),
+        String(days),
+      )
+      await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+
+      expect(
+        await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
+      ).toBeInTheDocument()
+      expect(screen.getAllByRole('listitem')).toHaveLength(days)
+      expect(screen.getByText(/24[.,]5 °C/)).toBeInTheDocument()
+
+      const forecastUrl = callsFor(fetchMock, '/forecast/coordinates?')[0][0]
+        .toString()
+      expect(forecastUrl).toContain(
+        `latitude=${aydin.latitude}&longitude=${aydin.longitude}&days=${days}`,
+      )
+      expect(forecastUrl).not.toContain('city=')
+      expect(callsFor(fetchMock, '/external/forecast?')).toHaveLength(0)
+    },
+  )
+
+  it('requires a current structured selection before requesting a forecast', async () => {
+    const { fetchMock, user } = await enterLivePage()
+    const input = screen.getByRole('combobox', { name: 'Location' })
+
+    await user.type(input, 'Aydın')
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /select a location from the suggestions/i,
+    )
+    expect(input).toHaveFocus()
+    expect(callsFor(fetchMock, '/forecast/coordinates?')).toHaveLength(0)
+  })
+
+  it('invalidates selected coordinates immediately after editing', async () => {
+    const { fetchMock, user } = await enterLivePage()
+    const input = await selectLocation(user)
+
+    await user.type(input, 'x')
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /select a location from the suggestions/i,
+    )
+    expect(callsFor(fetchMock, '/forecast/coordinates?')).toHaveLength(0)
+  })
+
+  it('prevents synchronous duplicate coordinate submissions', async () => {
     let resolveForecast: ((value: Response) => void) | undefined
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const { user } = await enterLivePage((input) => {
-      if (input.toString().includes('/api/weather/external/forecast?')) {
+    const { fetchMock, user } = await enterLivePage((input) => {
+      if (input.toString().includes('/forecast/coordinates?')) {
         return new Promise<Response>((resolve) => {
           resolveForecast = resolve
         })
       }
-      return successfulFetch(input)
+      return baseFetch(input)
     })
+    await selectLocation(user)
+    const form = screen.getByRole('button', { name: 'Get live forecast' })
+      .closest('form')!
+
+    fireEvent.submit(form)
+    fireEvent.submit(form)
+
+    expect(callsFor(fetchMock, '/forecast/coordinates?')).toHaveLength(1)
+    expect(
+      screen.getByRole('button', { name: /loading live forecast/i }),
+    ).toBeInTheDocument()
+    resolveForecast?.(
+      new Response(JSON.stringify(forecast()), { status: 200 }),
+    )
+    expect(
+      await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows safe forecast errors and logs out through the existing 401 flow', async () => {
+    let forecastAttempts = 0
+    const { user } = await enterLivePage((input) => {
+      if (input.toString().includes('/forecast/coordinates?')) {
+        forecastAttempts += 1
+        return forecastAttempts === 1
+          ? response({ detail: 'secret' }, 503)
+          : response({}, 401)
+      }
+      return baseFetch(input)
+    })
+    await selectLocation(user)
+
     await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
-    await user.click(screen.getByRole('button', { name: 'Sign out' }))
-    resolveForecast?.(new Response(JSON.stringify(forecast()), { status: 200 }))
-    await waitFor(() => expect(screen.getByRole('heading', { name: /sign in/i })).toBeInTheDocument())
-    expect(consoleError).not.toHaveBeenCalled()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /provider is unavailable/i,
+    )
+    expect(screen.queryByText('secret')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
   })
 })
