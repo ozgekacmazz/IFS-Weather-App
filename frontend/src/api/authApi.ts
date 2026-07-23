@@ -1,12 +1,18 @@
 import { ApiClient } from './apiClient'
-import type { AuthenticationSession, LoginRequest, UserRole } from '../auth/authTypes'
+import {
+  UserRoles,
+  type AuthenticationSession,
+  type LoginRequest,
+  type RegisterRequest,
+  type UserRole,
+} from '../auth/authTypes'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function isUserRole(value: unknown): value is UserRole {
-  return value === 1 || value === 2
+  return value === UserRoles.User || value === UserRoles.Admin
 }
 
 function isExplicitTimestamp(value: unknown): value is string {
@@ -49,6 +55,20 @@ export function login(
 ): Promise<AuthenticationSession> {
   return apiClient.request(
     'api/auth/login',
+    {
+      method: 'POST',
+      body: JSON.stringify(request),
+    },
+    decodeAuthenticationSession,
+  )
+}
+
+export function register(
+  apiClient: ApiClient,
+  request: RegisterRequest,
+): Promise<AuthenticationSession> {
+  return apiClient.request(
+    'api/auth/register',
     {
       method: 'POST',
       body: JSON.stringify(request),

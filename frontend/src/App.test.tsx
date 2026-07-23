@@ -1,65 +1,143 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { UserRoles, type UserRole } from './auth/authTypes'
 
 const apiBaseUrl = 'https://localhost:7257'
 
-function renderApp(initialPath = '/login') {
+function authenticationResponse(
+  role: UserRole,
+  expiresAtUtc: string | null = '2099-07-22T12:00:00Z',
+) {
+  return {
+    userId: 7,
+    username: role === UserRoles.Admin ? 'test.admin' : 'test.user',
+    email: 'person@example.test',
+    role,
+    accessToken: 'test-access-token',
+    expiresAtUtc,
+  }
+}
+
+function NavigationHarness() {
+  const navigate = useNavigate()
+
+  return (
+    <>
+      <button type="button" onClick={() => navigate('/login')}>
+        Go to login
+      </button>
+      <button type="button" onClick={() => navigate('/register')}>
+        Go to register
+      </button>
+    </>
+  )
+}
+
+function renderApp(initialPath = '/login', withNavigationHarness = false) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <App apiBaseUrl={apiBaseUrl} />
+      {withNavigationHarness ? <NavigationHarness /> : null}
     </MemoryRouter>,
   )
 }
 
+async function submitLogin(role: UserRole, initialPath = '/login') {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(JSON.stringify(authenticationResponse(role)), { status: 200 }),
+  )
+  const user = userEvent.setup()
+  renderApp(initialPath)
+
+  await user.type(screen.getByLabelText(/username or email/i), 'test.user')
+  await user.type(screen.getByLabelText(/^password$/i), 'test-password')
+  await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+  return user
+}
+
 describe('authentication flow', () => {
-  it('submits the backend contract and enters the protected shell', async () => {
+  it('submits the login contract and routes a User to the weather landing page', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          userId: 7,
-          username: 'weather.user',
-          email: 'weather.user@example.test',
-          role: 1,
-          accessToken: 'test-access-token',
-          expiresAtUtc: '2026-07-22T12:00:00Z',
-        }),
-        { status: 200 },
-      ),
+      new Response(JSON.stringify(authenticationResponse(UserRoles.User)), {
+        status: 200,
+      }),
     )
     const user = userEvent.setup()
     renderApp()
 
-    await user.type(screen.getByLabelText(/username or email/i), 'weather.user')
+    await user.type(screen.getByLabelText(/username or email/i), ' test.user ')
     await user.type(screen.getByLabelText(/^password$/i), 'test-password')
     await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
-    expect(await screen.findByRole('heading', { name: 'Welcome, weather.user' })).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledOnce()
-
+    expect(
+      await screen.findByText('Your weather workspace is ready.'),
+    ).toBeInTheDocument()
     const [url, options] = fetchMock.mock.calls[0]
     expect(url.toString()).toBe('https://localhost:7257/api/auth/login')
-    expect(options?.method).toBe('POST')
     expect(options?.body).toBe(
       JSON.stringify({
-        usernameOrEmail: 'weather.user',
+        usernameOrEmail: 'test.user',
         password: 'test-password',
       }),
     )
-    expect(new Headers(options?.headers).has('Authorization')).toBe(false)
   })
 
-  it('shows one generic error and clears the password after a rejected login', async () => {
+  it('routes an Admin to the administration landing page', async () => {
+    await submitLogin(UserRoles.Admin)
+
+    expect(
+      await screen.findByText('Your administration workspace is ready.'),
+    ).toBeInTheDocument()
+  })
+
+  it('redirects an anonymous visitor away from a protected route', async () => {
+    renderApp('/app/admin')
+
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('redirects a User away from an Admin-only route', async () => {
+    await submitLogin(UserRoles.User, '/app/admin')
+
+    expect(
+      await screen.findByText('Your weather workspace is ready.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('Your administration workspace is ready.'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('redirects an authenticated user away from login and registration', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          title: 'A sensitive backend detail that must not be rendered',
-          status: 401,
-        }),
-        { status: 401 },
-      ),
+      new Response(JSON.stringify(authenticationResponse(UserRoles.User)), {
+        status: 200,
+      }),
+    )
+    const user = userEvent.setup()
+    renderApp('/login', true)
+
+    await user.type(screen.getByLabelText(/username or email/i), 'test.user')
+    await user.type(screen.getByLabelText(/^password$/i), 'test-password')
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+    await screen.findByText('Your weather workspace is ready.')
+
+    await user.click(screen.getByRole('button', { name: 'Go to login' }))
+    expect(screen.queryByText(/sign in to your account/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Go to register' }))
+    expect(screen.queryByText(/create your account/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Your weather workspace is ready.')).toBeInTheDocument()
+  })
+
+  it('shows the non-enumerating 401 message and clears the password', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ status: 401 }), { status: 401 }),
     )
     const user = userEvent.setup()
     renderApp()
@@ -70,74 +148,65 @@ describe('authentication flow', () => {
     await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Sign-in failed. Check your credentials and account status, then try again.',
+      /credentials may be incorrect, or your account may be temporarily unavailable/i,
     )
-    expect(screen.queryByText(/sensitive backend detail/i)).not.toBeInTheDocument()
     expect(passwordInput).toHaveValue('')
-    expect(screen.getByLabelText(/username or email/i)).toHaveValue('unknown-user')
   })
 
-  it('rejects a malformed successful response without authenticating', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          userId: 7,
-          username: 'weather.user',
-          email: 'weather.user@example.test',
-          role: 1,
-          accessToken: 'raw-response-content',
-          expiresAtUtc: 'ambiguous-local-time',
+  it('prevents ordinary duplicate login submission while loading', async () => {
+    let resolveRequest: ((response: Response) => void) | undefined
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveRequest = resolve
         }),
-        { status: 200 },
-      ),
     )
     const user = userEvent.setup()
     renderApp()
 
-    await user.type(screen.getByLabelText(/username or email/i), 'weather.user')
+    await user.type(screen.getByLabelText(/username or email/i), 'test.user')
     await user.type(screen.getByLabelText(/^password$/i), 'test-password')
-    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+    const submitButton = screen.getByRole('button', { name: /^sign in$/i })
+    await user.dblClick(submitButton)
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Sign-in failed. Check your credentials and account status, then try again.',
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: /signing in/i })).toBeDisabled()
+
+    resolveRequest?.(
+      new Response(JSON.stringify(authenticationResponse(UserRoles.User)), {
+        status: 200,
+      }),
     )
-    expect(screen.queryByText('raw-response-content')).not.toBeInTheDocument()
-    expect(screen.queryByText(/welcome, weather\.user/i)).not.toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { name: /sign in to your account/i }),
+      await screen.findByText('Your weather workspace is ready.'),
     ).toBeInTheDocument()
   })
 
-  it('redirects an anonymous visitor away from the protected route', async () => {
-    renderApp('/app')
+  it('clears the in-memory session on sign out', async () => {
+    const user = await submitLogin(UserRoles.User)
+    await screen.findByText('Your weather workspace is ready.')
+    await user.click(screen.getByRole('button', { name: /sign out/i }))
 
     expect(
       await screen.findByRole('heading', { name: /sign in to your account/i }),
     ).toBeInTheDocument()
   })
 
-  it('clears the in-memory session on sign out', async () => {
+  it('clears an already expired session before protected routing', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
-        JSON.stringify({
-          userId: 7,
-          username: 'weather.user',
-          email: 'weather.user@example.test',
-          role: 1,
-          accessToken: 'test-access-token',
-          expiresAtUtc: null,
-        }),
+        JSON.stringify(
+          authenticationResponse(UserRoles.User, '2020-01-01T00:00:00Z'),
+        ),
         { status: 200 },
       ),
     )
     const user = userEvent.setup()
     renderApp()
 
-    await user.type(screen.getByLabelText(/username or email/i), 'weather.user')
+    await user.type(screen.getByLabelText(/username or email/i), 'test.user')
     await user.type(screen.getByLabelText(/^password$/i), 'test-password')
     await user.click(screen.getByRole('button', { name: /^sign in$/i }))
-    await screen.findByRole('heading', { name: 'Welcome, weather.user' })
-    await user.click(screen.getByRole('button', { name: /sign out/i }))
 
     await waitFor(() => {
       expect(

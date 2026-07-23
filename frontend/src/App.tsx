@@ -1,8 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './auth/ProtectedRoute'
-import { AppShellPage } from './pages/AppShellPage'
+import { UserRoles } from './auth/authTypes'
 import { LoginPage } from './pages/LoginPage'
+import { RegisterPage } from './pages/RegisterPage'
+import { RoleLandingPage } from './pages/RoleLandingPage'
 
 interface AppProps {
   apiBaseUrl: string
@@ -13,10 +15,36 @@ export function App({ apiBaseUrl }: AppProps) {
     <AuthProvider apiBaseUrl={apiBaseUrl}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route element={<ProtectedRoute />}>
-          <Route path="/app" element={<AppShellPage />} />
+          <Route
+            element={<ProtectedRoute allowedRole={UserRoles.User} />}
+          >
+            <Route
+              path="/app/weather"
+              element={
+                <RoleLandingPage
+                  eyebrow="Weather workspace"
+                  title="Your weather workspace is ready."
+                />
+              }
+            />
+          </Route>
+          <Route
+            element={<ProtectedRoute allowedRole={UserRoles.Admin} />}
+          >
+            <Route
+              path="/app/admin"
+              element={
+                <RoleLandingPage
+                  eyebrow="Administration"
+                  title="Your administration workspace is ready."
+                />
+              }
+            />
+          </Route>
         </Route>
-        <Route path="*" element={<Navigate to="/app" replace />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </AuthProvider>
   )
