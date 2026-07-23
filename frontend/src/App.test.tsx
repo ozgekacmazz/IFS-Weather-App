@@ -147,6 +147,41 @@ describe('authentication flow', () => {
     ).toBeInTheDocument()
   })
 
+  it('redirects an anonymous profile visitor to login', async () => {
+    renderApp('/app/profile')
+
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('returns a User to the safe requested profile route after login', async () => {
+    await submitLogin(UserRoles.User, '/app/profile')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Your profile' }),
+    ).toBeInTheDocument()
+  })
+
+  it('redirects an Admin away from the User profile route', async () => {
+    await submitLogin(UserRoles.Admin, '/app/profile')
+
+    expect(
+      await screen.findByText('Your administration workspace is ready.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Your profile' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('rejects an arbitrary requested app path after User login', async () => {
+    await submitLogin(UserRoles.User, '/app/not-approved')
+
+    expect(
+      await screen.findByRole('heading', { name: /your weather, at a glance/i }),
+    ).toBeInTheDocument()
+  })
+
   it('redirects a User away from an Admin-only route', async () => {
     await submitLogin(UserRoles.User, '/app/admin')
 

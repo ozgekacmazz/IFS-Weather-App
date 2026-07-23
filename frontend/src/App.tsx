@@ -5,6 +5,7 @@ import { UserRoles } from './auth/authTypes'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { RoleLandingPage } from './pages/RoleLandingPage'
+import { UserProfilePage } from './pages/UserProfilePage'
 import { UserWeatherDashboardPage } from './pages/UserWeatherDashboardPage'
 
 interface AppProps {
@@ -25,6 +26,7 @@ export function App({ apiBaseUrl }: AppProps) {
               path="/app/weather"
               element={<UserWeatherDashboardPage />}
             />
+            <Route path="/app/profile" element={<UserProfilePage />} />
           </Route>
           <Route
             element={<ProtectedRoute allowedRole={UserRoles.Admin} />}

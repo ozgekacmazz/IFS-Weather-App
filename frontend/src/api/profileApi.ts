@@ -14,6 +14,14 @@ export interface UserProfile {
   createdAt: string
 }
 
+export interface UpdateProfileRequest {
+  firstName: string
+  lastName: string
+  defaultCity: string | null
+  currentPassword: string | null
+  newPassword: string | null
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -82,17 +90,24 @@ export function updateDefaultCity(
   profile: UserProfile,
   defaultCity: string,
 ): Promise<UserProfile> {
+  return updateProfile(apiClient, {
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+    defaultCity,
+    currentPassword: null,
+    newPassword: null,
+  })
+}
+
+export function updateProfile(
+  apiClient: ApiClient,
+  request: UpdateProfileRequest,
+): Promise<UserProfile> {
   return apiClient.request(
     'api/profile',
     {
       method: 'PUT',
-      body: JSON.stringify({
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        defaultCity,
-        currentPassword: null,
-        newPassword: null,
-      }),
+      body: JSON.stringify(request),
     },
     decodeProfile,
     true,

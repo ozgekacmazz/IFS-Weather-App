@@ -1,9 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import {
-  getRoleHomePath,
-  getSafePostAuthenticationPath,
-} from '../auth/authNavigation'
+import { getSafePostAuthenticationPath } from '../auth/authNavigation'
 import { useAuth } from '../auth/useAuth'
 
 const genericLoginError =
@@ -24,7 +21,13 @@ export function LoginPage() {
   const submissionInProgress = useRef(false)
 
   if (session) {
-    return <Navigate to={getRoleHomePath(session.role)} replace />
+    const requestedPath = (location.state as LoginLocationState | null)?.from
+    return (
+      <Navigate
+        to={getSafePostAuthenticationPath(session.role, requestedPath)}
+        replace
+      />
+    )
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
