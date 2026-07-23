@@ -1,0 +1,241 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700&display=swap');
+
+:root {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  color: #14213d;
+  background: #f5f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.auth-layout {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: minmax(360px, 0.9fr) minmax(480px, 1.1fr);
+}
+
+.brand-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: clamp(2.5rem, 6vw, 5.5rem);
+  color: #f8fbff;
+  background:
+    radial-gradient(circle at 12% 76%, rgb(78 205 196 / 32%), transparent 27%),
+    radial-gradient(circle at 90% 10%, rgb(76 130 255 / 38%), transparent 34%),
+    linear-gradient(145deg, #071834, #123c68 58%, #0b6e75);
+}
+
+.brand-panel h1 {
+  max-width: 650px;
+  margin: 1rem 0;
+  font: 700 clamp(2.8rem, 5vw, 5.2rem) / 1.02 'Manrope', sans-serif;
+  letter-spacing: -0.055em;
+}
+
+.brand-copy {
+  max-width: 560px;
+  color: #d9e8f5;
+  font-size: 1.13rem;
+  line-height: 1.7;
+}
+
+.brand-note {
+  margin: 3rem 0 0;
+  color: #b9d7e7;
+  font-size: 0.92rem;
+}
+
+.form-panel {
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: #f5f7fb;
+}
+
+.login-card {
+  width: min(100%, 440px);
+}
+
+.mobile-brand {
+  display: none;
+  margin-bottom: 3rem;
+  font: 700 1.1rem 'Manrope', sans-serif;
+}
+
+.eyebrow {
+  margin: 0 0 0.7rem;
+  color: #147c82;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.brand-panel .eyebrow {
+  color: #83e0da;
+}
+
+.login-card h2 {
+  margin: 0;
+  color: #101c35;
+  font: 700 clamp(2rem, 3vw, 2.6rem) / 1.18 'Manrope', sans-serif;
+  letter-spacing: -0.035em;
+}
+
+.form-intro {
+  margin: 0.8rem 0 2.1rem;
+  color: #68738a;
+}
+
+form {
+  display: grid;
+}
+
+label {
+  margin: 0 0 0.48rem;
+  color: #24314c;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
+  color: #14213d;
+  border: 1px solid #cbd3df;
+  border-radius: 10px;
+  outline: none;
+  background: #fff;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+input:focus {
+  border-color: #167c83;
+  box-shadow: 0 0 0 3px rgb(22 124 131 / 14%);
+}
+
+.error-message {
+  margin: 0 0 1.2rem;
+  padding: 0.8rem 0.9rem;
+  color: #842b34;
+  border: 1px solid #efc8cd;
+  border-radius: 9px;
+  background: #fff1f2;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+form button,
+.secondary-button {
+  padding: 0.92rem 1.2rem;
+  border: 0;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+form button {
+  color: #fff;
+  background: #126e75;
+  box-shadow: 0 10px 24px rgb(18 110 117 / 20%);
+}
+
+form button:hover:not(:disabled) {
+  background: #0d5d63;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #edf6f7, #f8fafc 44%);
+}
+
+.app-shell header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.2rem clamp(1.5rem, 6vw, 5rem);
+  border-bottom: 1px solid #d9e2e8;
+  background: rgb(255 255 255 / 80%);
+}
+
+.app-logo {
+  color: #12314e;
+  font: 700 1.1rem 'Manrope', sans-serif;
+  text-decoration: none;
+}
+
+.secondary-button {
+  color: #126e75;
+  border: 1px solid #9cc5c8;
+  background: transparent;
+}
+
+.app-shell main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: clamp(4rem, 12vw, 9rem) clamp(1.5rem, 6vw, 5rem);
+}
+
+.app-shell h1 {
+  margin: 0 0 1rem;
+  font: 700 clamp(2.3rem, 5vw, 4.2rem) 'Manrope', sans-serif;
+  letter-spacing: -0.045em;
+}
+
+.app-shell main > p:last-child {
+  color: #68738a;
+  font-size: 1.08rem;
+}
+
+.configuration-error {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+@media (max-width: 800px) {
+  .auth-layout {
+    display: block;
+  }
+
+  .brand-panel {
+    display: none;
+  }
+
+  .form-panel {
+    min-height: 100vh;
+    padding: 2rem 1.4rem;
+  }
+
+  .mobile-brand {
+    display: block;
+  }
+}
