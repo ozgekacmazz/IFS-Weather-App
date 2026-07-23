@@ -2,6 +2,7 @@ import { UserRoles, type UserRole } from './authTypes'
 
 export const userHomePath = '/app/weather'
 export const adminHomePath = '/app/admin'
+export const adminUsersPath = '/app/admin/users'
 export const userProfilePath = '/app/profile'
 
 export function getRoleHomePath(role: UserRole): string {
@@ -18,7 +19,8 @@ export function getSafePostAuthenticationPath(
     role === UserRoles.User &&
     (requestedPath === userHomePath || requestedPath === userProfilePath)
   const isAllowedAdminPath =
-    role === UserRoles.Admin && requestedPath === adminHomePath
+    role === UserRoles.Admin &&
+    (requestedPath === adminHomePath || requestedPath === adminUsersPath)
 
   if (isAllowedUserPath || isAllowedAdminPath) {
     return requestedPath

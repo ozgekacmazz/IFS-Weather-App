@@ -19,7 +19,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -149,6 +150,21 @@ input {
   outline: none;
   background: #fff;
   transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+select {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.8rem 1rem;
+  color: #14213d;
+  border: 1px solid #cbd3df;
+  border-radius: 10px;
+  background: #fff;
+}
+
+select:focus-visible {
+  border-color: #167c83;
+  outline: 3px solid rgb(22 124 131 / 18%);
 }
 
 input:focus {
@@ -616,6 +632,187 @@ button:focus-visible {
   min-width: 170px;
 }
 
+.admin-users-content {
+  width: min(1320px, calc(100% - 2.5rem));
+  margin: 0 auto;
+  padding: clamp(2.5rem, 6vw, 5rem) 0;
+}
+
+.admin-filter-form {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.35fr) auto;
+  gap: 1rem;
+  align-items: start;
+  padding: 1.3rem;
+  border: 1px solid #dbe6e9;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 92%);
+}
+
+.admin-filter-form input {
+  margin: 0;
+}
+
+.admin-filter-error {
+  margin: 0.55rem 0 0;
+}
+
+.admin-filter-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+  padding-top: 1.55rem;
+}
+
+.admin-filter-actions .secondary-button {
+  box-shadow: none;
+}
+
+.admin-table-card,
+.admin-detail-card {
+  margin-top: 1.5rem;
+  padding: clamp(1.2rem, 3vw, 2rem);
+  border: 1px solid #dbe6e9;
+  border-radius: 20px;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 18px 55px rgb(16 42 67 / 7%);
+}
+
+.admin-table-scroll {
+  overflow-x: auto;
+}
+
+.admin-table-card table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.admin-table-card th,
+.admin-table-card td {
+  padding: 0.9rem 0.75rem;
+  border-bottom: 1px solid #e3ebee;
+  vertical-align: middle;
+}
+
+.admin-table-card th {
+  color: #52697b;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.status-active {
+  color: #17653b;
+  background: #e6f6ed;
+}
+
+.status-inactive {
+  color: #8a3a20;
+  background: #fff0e8;
+}
+
+.table-action,
+.admin-pagination button,
+.admin-status-actions button,
+.admin-confirmation button {
+  padding: 0.65rem 0.85rem;
+  color: #fff;
+  border: 0;
+  border-radius: 9px;
+  background: #126e75;
+  font-weight: 700;
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding-top: 1.4rem;
+}
+
+.admin-pagination button:disabled {
+  color: #6d7c89;
+  background: #e7edef;
+}
+
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.admin-detail-grid div {
+  padding: 1rem;
+  border-radius: 12px;
+  background: #f0f6f7;
+}
+
+.admin-detail-grid dt {
+  color: #607184;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.admin-detail-grid dd {
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.admin-status-actions {
+  margin-top: 1.2rem;
+}
+
+.admin-self-note {
+  color: #52697b;
+  font-weight: 600;
+}
+
+.admin-confirmation {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #edc37a;
+  border-radius: 12px;
+  background: #fff9ec;
+}
+
+.admin-confirmation h3 {
+  margin: 0;
+}
+
+.admin-confirmation > div {
+  display: flex;
+  gap: 0.7rem;
+}
+
+.admin-confirmation .secondary-button {
+  color: #126e75;
+  background: transparent;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (max-width: 800px) {
   .auth-layout {
     display: block;
@@ -644,6 +841,19 @@ button:focus-visible {
     flex-direction: column;
     gap: 0.5rem;
   }
+
+  .admin-filter-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-filter-actions {
+    grid-column: 1 / -1;
+    padding-top: 0;
+  }
+
+  .admin-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 520px) {
@@ -660,6 +870,26 @@ button:focus-visible {
   .profile-content {
     width: min(100% - 1.2rem, 920px);
     padding-top: 2rem;
+  }
+
+  .admin-users-content {
+    width: min(100% - 1.2rem, 1320px);
+    padding-top: 2rem;
+  }
+
+  .admin-filter-form,
+  .admin-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-filter-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-pagination {
+    justify-content: space-between;
+    gap: 0.5rem;
   }
 
   .user-app-header {
