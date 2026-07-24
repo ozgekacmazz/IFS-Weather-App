@@ -366,6 +366,21 @@ describe('authentication flow', () => {
     expect(passwordInput).toHaveValue('')
   })
 
+  it('shows a configuration-focused network error and preserves the login password', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
+    renderApp('/login')
+    const user = userEvent.setup()
+    await user.type(screen.getByLabelText(/username or email/i), 'test-user')
+    const passwordInput = screen.getByLabelText(/^password$/i)
+    await user.type(passwordInput, 'test-password')
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /API service could not be reached/i,
+    )
+    expect(passwordInput).toHaveValue('test-password')
+  })
+
   it('prevents ordinary duplicate login submission while loading', async () => {
     let resolveRequest: ((response: Response) => void) | undefined
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(

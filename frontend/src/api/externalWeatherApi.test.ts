@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ApiClient } from './apiClient'
 import {
+  decodeExternalWeatherLocations,
   decodeExternalWeatherForecast,
   getExternalWeatherForecast,
+  getExternalWeatherForecastByCoordinates,
+  searchExternalWeatherLocations,
 } from './externalWeatherApi'
 
 const apiBaseUrl = 'https://localhost:7257'
@@ -34,6 +37,118 @@ function forecast() {
 }
 
 describe('external weather API', () => {
+  it('searches locations with safely encoded Unicode and authentication', async () => {
+    const locations = [
+      {
+        providerLocationId: 42,
+        name: 'Aydın',
+        region: 'Aydin',
+        country: 'Türkiye',
+        latitude: 37.8450123456789,
+        longitude: 27.839987654321,
+        displayLabel: 'Aydın, Aydin, Türkiye',
+      },
+    ]
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(locations), { status: 200 }),
+    )
+    const client = new ApiClient(apiBaseUrl, () => 'test-token')
+
+    await expect(
+      searchExternalWeatherLocations(client, ' Aydın & München '),
+    ).resolves.toEqual(locations)
+
+    const [url, options] = fetchMock.mock.calls[0]
+    expect(url.toString()).toBe(
+      `${apiBaseUrl}/api/weather/external/locations?query=+Ayd%C4%B1n+%26+M%C3%BCnchen+`,
+    )
+    expect(new Headers(options?.headers).get('Authorization')).toBe(
+      'Bearer test-token',
+    )
+  })
+
+  it.each([
+    'Aydın',
+    'İzmir',
+    'Şanlıurfa',
+    'Çanakkale',
+    'Eskişehir',
+    'München',
+    'São Paulo',
+    'Kraków',
+  ])('preserves Unicode location query %s', async (query) => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify([]), { status: 200 }),
+    )
+
+    await searchExternalWeatherLocations(
+      new ApiClient(apiBaseUrl, () => 'test-token'),
+      query,
+    )
+
+    const requestUrl = new URL(fetchMock.mock.calls[0][0].toString())
+    expect(requestUrl.searchParams.get('query')).toBe(query)
+  })
+
+  it('uses selected coordinates in latitude-longitude order without rounding', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(forecast()), { status: 200 }),
+    )
+    const client = new ApiClient(apiBaseUrl, () => 'test-token')
+    const controller = new AbortController()
+
+    await getExternalWeatherForecastByCoordinates(
+      client,
+      37.8450123456789,
+      27.839987654321,
+      2,
+      controller.signal,
+    )
+
+    const [url, options] = fetchMock.mock.calls[0]
+    expect(url.toString()).toBe(
+      `${apiBaseUrl}/api/weather/external/forecast/coordinates?latitude=37.8450123456789&longitude=27.839987654321&days=2`,
+    )
+    expect(url.toString()).not.toContain('city=')
+    expect(options?.signal).toBe(controller.signal)
+  })
+
+  it('decodes ordered structured locations and rejects unsafe contracts', () => {
+    const locations = [
+      {
+        providerLocationId: null,
+        name: 'São Paulo',
+        region: null,
+        country: 'Brazil',
+        latitude: -23.5505199,
+        longitude: -46.6333094,
+        displayLabel: 'São Paulo, Brazil',
+      },
+      {
+        providerLocationId: 9,
+        name: 'Kraków',
+        region: 'Lesser Poland',
+        country: 'Poland',
+        latitude: 50.06465,
+        longitude: 19.94498,
+        displayLabel: 'Kraków, Lesser Poland, Poland',
+      },
+    ]
+
+    expect(decodeExternalWeatherLocations(locations)).toEqual(locations)
+    expect(() => decodeExternalWeatherLocations({})).toThrow()
+    expect(() =>
+      decodeExternalWeatherLocations([
+        { ...locations[0], latitude: Number.NaN },
+      ]),
+    ).toThrow()
+    expect(() =>
+      decodeExternalWeatherLocations([
+        { ...locations[0], longitude: 181 },
+      ]),
+    ).toThrow()
+  })
+
   it('sends the exact authenticated and encoded request', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify(forecast()), { status: 200 }),

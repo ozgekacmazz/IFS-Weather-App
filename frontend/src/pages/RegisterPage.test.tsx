@@ -123,7 +123,19 @@ describe('registration flow', () => {
       'That username or email is already in use.',
     )
     expect(screen.queryByText('raw detail')).not.toBeInTheDocument()
-    expect(screen.getByLabelText(/^password$/i)).toHaveValue('')
+    expect(screen.getByLabelText(/^password$/i)).toHaveValue('SecurePass1')
+  })
+
+  it('shows a configuration-focused network error and preserves the password', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
+    renderRegistration()
+    const user = await fillValidRegistration()
+    await user.click(screen.getByRole('button', { name: /create account/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /API service could not be reached/i,
+    )
+    expect(screen.getByLabelText(/^password$/i)).toHaveValue('SecurePass1')
   })
 
   it('prevents duplicate registration submission while loading', async () => {

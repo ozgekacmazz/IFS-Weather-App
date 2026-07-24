@@ -51,7 +51,8 @@ public sealed class UserWeatherService : IUserWeatherService
             cancellationToken);
 
         var city = await ResolveCityAsync(normalizedQuery.City, cancellationToken);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = DateOnly.FromDateTime(
+            _timeProvider.GetUtcNow().UtcDateTime);
         var weatherInfo = await _weatherRepository.GetByCityAndDateAsync(
                 city,
                 today,

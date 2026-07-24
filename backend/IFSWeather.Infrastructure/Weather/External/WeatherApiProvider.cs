@@ -32,10 +32,95 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
         _logger = logger;
     }
 
+    public async Task<IReadOnlyList<ExternalLocation>> SearchLocationsAsync(
+        string query,
+        CancellationToken cancellationToken = default)
+    {
+        var requestPath = QueryHelpers.AddQueryString(
+            "search.json",
+            new Dictionary<string, string?>
+            {
+                ["key"] = _options.ApiKey,
+                ["q"] = query
+            });
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestPath);
+            using var response = await _httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                await ThrowForSearchFailureAsync(
+                    response,
+                    query,
+                    cancellationToken);
+            }
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(
+                cancellationToken);
+            var providerResponse =
+                await JsonSerializer.DeserializeAsync<List<WeatherApiSearchLocation>>(
+                    responseStream,
+                    SerializerOptions,
+                    cancellationToken: cancellationToken);
+
+            return MapSearchResponse(providerResponse);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            LogSearchFailure(query, "Timeout");
+            throw new ExternalWeatherUnavailableException();
+        }
+        catch (HttpRequestException exception)
+        {
+            LogSearchFailure(query, exception.GetType().Name);
+            throw new ExternalWeatherUnavailableException();
+        }
+        catch (JsonException exception)
+        {
+            LogSearchFailure(query, exception.GetType().Name);
+            throw new ExternalWeatherUnavailableException();
+        }
+        catch (NotSupportedException exception)
+        {
+            LogSearchFailure(query, exception.GetType().Name);
+            throw new ExternalWeatherUnavailableException();
+        }
+    }
+
     public async Task<ExternalWeatherForecast> GetForecastAsync(
         string city,
         int days,
         CancellationToken cancellationToken = default)
+    {
+        return await GetForecastCoreAsync(city, days, cancellationToken);
+    }
+
+    public async Task<ExternalWeatherForecast> GetForecastByCoordinatesAsync(
+        decimal latitude,
+        decimal longitude,
+        int days,
+        CancellationToken cancellationToken = default)
+    {
+        var coordinateQuery = string.Concat(
+            latitude.ToString("G29", CultureInfo.InvariantCulture),
+            ",",
+            longitude.ToString("G29", CultureInfo.InvariantCulture));
+
+        return await GetForecastCoreAsync(
+            coordinateQuery,
+            days,
+            cancellationToken);
+    }
+
+    private async Task<ExternalWeatherForecast> GetForecastCoreAsync(
+        string providerQuery,
+        int days,
+        CancellationToken cancellationToken)
     {
         if (days > _options.MaximumForecastDays)
         {
@@ -47,7 +132,7 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
             new Dictionary<string, string?>
             {
                 ["key"] = _options.ApiKey,
-                ["q"] = city,
+                ["q"] = providerQuery,
                 ["days"] = days.ToString(CultureInfo.InvariantCulture),
                 ["aqi"] = "no",
                 ["alerts"] = "no"
@@ -65,7 +150,7 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
             {
                 await ThrowForFailureAsync(
                     response,
-                    city,
+                    providerQuery,
                     days,
                     cancellationToken);
             }
@@ -81,22 +166,22 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            LogFailure(city, days, "Timeout");
+            LogFailure(providerQuery, days, "Timeout");
             throw new ExternalWeatherUnavailableException();
         }
         catch (HttpRequestException exception)
         {
-            LogFailure(city, days, exception.GetType().Name);
+            LogFailure(providerQuery, days, exception.GetType().Name);
             throw new ExternalWeatherUnavailableException();
         }
         catch (JsonException exception)
         {
-            LogFailure(city, days, exception.GetType().Name);
+            LogFailure(providerQuery, days, exception.GetType().Name);
             throw new ExternalWeatherUnavailableException();
         }
         catch (NotSupportedException exception)
         {
-            LogFailure(city, days, exception.GetType().Name);
+            LogFailure(providerQuery, days, exception.GetType().Name);
             throw new ExternalWeatherUnavailableException();
         }
     }
@@ -118,6 +203,49 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
             providerErrorCode,
             city,
             days);
+
+        switch (providerErrorCode)
+        {
+            case 1006:
+                throw new ExternalWeatherCityNotFoundException();
+            case 1002:
+            case 2006:
+            case 2008:
+            case 2009:
+                throw new ExternalWeatherConfigurationException();
+            case 2007:
+                throw new ExternalWeatherRateLimitException();
+            case 9999:
+                throw new ExternalWeatherUnavailableException();
+        }
+
+        switch (response.StatusCode)
+        {
+            case HttpStatusCode.TooManyRequests:
+                throw new ExternalWeatherRateLimitException();
+            case HttpStatusCode.Unauthorized:
+            case HttpStatusCode.Forbidden:
+                throw new ExternalWeatherConfigurationException();
+            default:
+                throw new ExternalWeatherUnavailableException();
+        }
+    }
+
+    private async Task ThrowForSearchFailureAsync(
+        HttpResponseMessage response,
+        string query,
+        CancellationToken cancellationToken)
+    {
+        var providerErrorCode = await TryGetProviderErrorCodeAsync(
+            response,
+            cancellationToken);
+
+        _logger.LogWarning(
+            "External weather provider {Provider} returned status {StatusCode} and error code {ProviderErrorCode} for location search query {Query}.",
+            ProviderName,
+            (int)response.StatusCode,
+            providerErrorCode,
+            query);
 
         switch (providerErrorCode)
         {
@@ -190,6 +318,48 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
             days);
     }
 
+    private static IReadOnlyList<ExternalLocation> MapSearchResponse(
+        List<WeatherApiSearchLocation>? response)
+    {
+        if (response is null)
+        {
+            throw new ExternalWeatherUnavailableException();
+        }
+
+        return response.Select(MapSearchLocation).ToArray();
+    }
+
+    private static ExternalLocation MapSearchLocation(
+        WeatherApiSearchLocation providerLocation)
+    {
+        if (string.IsNullOrWhiteSpace(providerLocation.Name)
+            || string.IsNullOrWhiteSpace(providerLocation.Country)
+            || providerLocation.Lat is not decimal latitude
+            || providerLocation.Lon is not decimal longitude)
+        {
+            throw new ExternalWeatherUnavailableException();
+        }
+
+        var name = providerLocation.Name.Trim();
+        var region = string.IsNullOrWhiteSpace(providerLocation.Region)
+            ? null
+            : providerLocation.Region.Trim();
+        var country = providerLocation.Country.Trim();
+        var displayLabel = string.Join(
+            ", ",
+            new[] { name, region, country }.Where(
+                component => !string.IsNullOrWhiteSpace(component)));
+
+        return new ExternalLocation(
+            providerLocation.Id,
+            name,
+            region,
+            country,
+            latitude,
+            longitude,
+            displayLabel);
+    }
+
     private static ExternalWeatherDay MapDay(WeatherApiForecastDay? providerDay)
     {
         if (providerDay is null
@@ -236,6 +406,15 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
             ProviderName,
             city,
             days,
+            exceptionType);
+    }
+
+    private void LogSearchFailure(string query, string exceptionType)
+    {
+        _logger.LogWarning(
+            "External weather provider {Provider} failed for location search query {Query} with {ExceptionType}.",
+            ProviderName,
+            query,
             exceptionType);
     }
 }

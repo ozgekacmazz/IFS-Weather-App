@@ -1,4 +1,5 @@
 using FluentValidation;
+using IFSWeather.Application.Weather.External.Exceptions;
 using IFSWeather.Application.Weather.External.Interfaces;
 using IFSWeather.Application.Weather.External.Models;
 using IFSWeather.Application.Weather.External.Services;
@@ -9,6 +10,133 @@ namespace IFSWeather.Tests.Weather.External;
 
 public sealed class ExternalWeatherServiceTests
 {
+    [Fact]
+    public async Task GetForecastByCoordinatesAsync_PropagatesCoordinatesInOrder()
+    {
+        var provider = new RecordingProvider();
+        var service = CreateService(provider);
+        using var cancellation = new CancellationTokenSource();
+
+        var result = await service.GetForecastByCoordinatesAsync(
+            new ExternalCoordinateForecastQuery
+            {
+                Latitude = 37.8450123456789m,
+                Longitude = 27.839987654321m,
+                Days = 2
+            },
+            cancellation.Token);
+
+        Assert.Equal(37.8450123456789m, provider.Latitude);
+        Assert.Equal(27.839987654321m, provider.Longitude);
+        Assert.Equal(2, provider.Days);
+        Assert.Equal(cancellation.Token, provider.CancellationToken);
+        Assert.Same(provider.Response, result);
+    }
+
+    [Theory]
+    [InlineData(-90, 0)]
+    [InlineData(90, 0)]
+    [InlineData(0, -180)]
+    [InlineData(0, 180)]
+    public async Task GetForecastByCoordinatesAsync_AcceptsCoordinateBoundaries(
+        decimal latitude,
+        decimal longitude)
+    {
+        var provider = new RecordingProvider();
+        var service = CreateService(provider);
+
+        await service.GetForecastByCoordinatesAsync(
+            new ExternalCoordinateForecastQuery
+            {
+                Latitude = latitude,
+                Longitude = longitude
+            },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(latitude, provider.Latitude);
+        Assert.Equal(longitude, provider.Longitude);
+    }
+
+    [Theory]
+    [InlineData(-90.0001, 0)]
+    [InlineData(90.0001, 0)]
+    [InlineData(0, -180.0001)]
+    [InlineData(0, 180.0001)]
+    public async Task GetForecastByCoordinatesAsync_RejectsOutOfRangeCoordinates(
+        decimal latitude,
+        decimal longitude)
+    {
+        var provider = new RecordingProvider();
+        var service = CreateService(provider);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            service.GetForecastByCoordinatesAsync(
+                new ExternalCoordinateForecastQuery
+                {
+                    Latitude = latitude,
+                    Longitude = longitude
+                },
+                TestContext.Current.CancellationToken));
+
+        Assert.Null(provider.Latitude);
+        Assert.Null(provider.Longitude);
+    }
+
+    [Fact]
+    public async Task GetForecastByCoordinatesAsync_RejectsMissingLatitude()
+    {
+        var provider = new RecordingProvider();
+        var service = CreateService(provider);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            service.GetForecastByCoordinatesAsync(
+                new ExternalCoordinateForecastQuery
+                {
+                    Longitude = 27.84m
+                },
+                TestContext.Current.CancellationToken));
+
+        Assert.Null(provider.Latitude);
+        Assert.Null(provider.Longitude);
+    }
+
+    [Fact]
+    public async Task GetForecastByCoordinatesAsync_RejectsMissingLongitude()
+    {
+        var provider = new RecordingProvider();
+        var service = CreateService(provider);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            service.GetForecastByCoordinatesAsync(
+                new ExternalCoordinateForecastQuery
+                {
+                    Latitude = 37.84m
+                },
+                TestContext.Current.CancellationToken));
+
+        Assert.Null(provider.Latitude);
+        Assert.Null(provider.Longitude);
+    }
+
+    [Fact]
+    public async Task GetForecastByCoordinatesAsync_PropagatesProviderException()
+    {
+        var provider = new RecordingProvider
+        {
+            CoordinateException = new ExternalWeatherRateLimitException()
+        };
+        var service = CreateService(provider);
+
+        await Assert.ThrowsAsync<ExternalWeatherRateLimitException>(() =>
+            service.GetForecastByCoordinatesAsync(
+                new ExternalCoordinateForecastQuery
+                {
+                    Latitude = 37.84m,
+                    Longitude = 27.84m
+                },
+                TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task GetForecastAsync_NormalizesCityAndPropagatesRequest()
     {
@@ -80,7 +208,10 @@ public sealed class ExternalWeatherServiceTests
 
     private static ExternalWeatherService CreateService(
         IExternalWeatherProvider provider) =>
-        new(provider, new ExternalForecastQueryValidator());
+        new(
+            provider,
+            new ExternalForecastQueryValidator(),
+            new ExternalCoordinateForecastQueryValidator());
 
     private sealed class RecordingProvider : IExternalWeatherProvider
     {
@@ -100,9 +231,36 @@ public sealed class ExternalWeatherServiceTests
 
         public string? City { get; private set; }
 
+        public decimal? Latitude { get; private set; }
+
+        public decimal? Longitude { get; private set; }
+
         public int Days { get; private set; }
 
         public CancellationToken CancellationToken { get; private set; }
+
+        public Exception? CoordinateException { get; init; }
+
+        public Task<IReadOnlyList<ExternalLocation>> SearchLocationsAsync(
+            string query,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ExternalWeatherForecast> GetForecastByCoordinatesAsync(
+            decimal latitude,
+            decimal longitude,
+            int days,
+            CancellationToken cancellationToken = default)
+        {
+            Latitude = latitude;
+            Longitude = longitude;
+            Days = days;
+            CancellationToken = cancellationToken;
+
+            return CoordinateException is null
+                ? Task.FromResult(Response)
+                : Task.FromException<ExternalWeatherForecast>(CoordinateException);
+        }
 
         public Task<ExternalWeatherForecast> GetForecastAsync(
             string city,

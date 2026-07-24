@@ -128,9 +128,12 @@ export function RegisterPage() {
       })
       navigate(getRoleHomePath(authenticatedSession.role), { replace: true })
     } catch (error: unknown) {
-      setFields((current) => ({ ...current, password: '' }))
+      const isNetworkError = error instanceof ApiError && error.status === null
+
       setRequestError(
-        error instanceof ApiError && error.status === 409
+        isNetworkError
+          ? 'The API service could not be reached. Check the frontend API URL and confirm the backend is running.'
+          : error instanceof ApiError && error.status === 409
           ? 'That username or email is already in use.'
           : 'Registration could not be completed. Check your information and try again.',
       )

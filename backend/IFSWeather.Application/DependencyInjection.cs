@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddScoped<IWeatherManagementService, WeatherManagementService>();
         services.AddScoped<IUserWeatherService, UserWeatherService>();
         services.AddScoped<IExternalWeatherService, ExternalWeatherService>();
+        services.AddScoped<IExternalLocationSearchService, ExternalLocationSearchService>();
 
         return services;
     }

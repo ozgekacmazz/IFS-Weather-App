@@ -11,10 +11,51 @@ namespace IFSWeather.Api.Controllers;
 public sealed class ExternalWeatherController : ControllerBase
 {
     private readonly IExternalWeatherService _externalWeatherService;
+    private readonly IExternalLocationSearchService _externalLocationSearchService;
 
-    public ExternalWeatherController(IExternalWeatherService externalWeatherService)
+    public ExternalWeatherController(
+        IExternalWeatherService externalWeatherService,
+        IExternalLocationSearchService externalLocationSearchService)
     {
         _externalWeatherService = externalWeatherService;
+        _externalLocationSearchService = externalLocationSearchService;
+    }
+
+    [HttpGet("locations")]
+    [ProducesResponseType<IReadOnlyList<ExternalLocation>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<IReadOnlyList<ExternalLocation>>> SearchLocations(
+        [FromQuery(Name = "query")] string query,
+        CancellationToken cancellationToken)
+    {
+        var response = await _externalLocationSearchService.SearchAsync(
+            new ExternalLocationQuery { Query = query },
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    [HttpGet("forecast/coordinates")]
+    [ProducesResponseType<ExternalWeatherForecast>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<ExternalWeatherForecast>> GetForecastByCoordinates(
+        [FromQuery] ExternalCoordinateForecastQuery query,
+        CancellationToken cancellationToken)
+    {
+        var response = await _externalWeatherService.GetForecastByCoordinatesAsync(
+            query,
+            cancellationToken);
+
+        return Ok(response);
     }
 
     [HttpGet("forecast")]

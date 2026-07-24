@@ -16,6 +16,21 @@ internal sealed class WeatherApiLocation
     public string? Country { get; init; }
 }
 
+internal sealed class WeatherApiSearchLocation
+{
+    public long? Id { get; init; }
+
+    public string? Name { get; init; }
+
+    public string? Region { get; init; }
+
+    public string? Country { get; init; }
+
+    public decimal? Lat { get; init; }
+
+    public decimal? Lon { get; init; }
+}
+
 internal sealed class WeatherApiForecast
 {
     [JsonPropertyName("forecastday")]
