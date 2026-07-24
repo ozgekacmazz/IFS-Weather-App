@@ -732,4 +732,74 @@ describe('AdminWeatherPage', () => {
     resolveList?.(new Response(JSON.stringify(page()), { status: 200 }))
     await Promise.resolve()
   })
+
+  it('searches, previews without saving, then explicitly saves live weather', async () => {
+    const location = {
+      providerLocationId: 43,
+      name: 'İzmir',
+      region: 'Izmir',
+      country: 'Türkiye',
+      latitude: 38.423734,
+      longitude: 27.142826,
+      displayLabel: 'İzmir, Izmir, Türkiye',
+    }
+    const preview = {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      cityName: location.name,
+      displayLabel: location.displayLabel,
+      weatherDate: '2026-07-24',
+      temperature: 28.5,
+      mainStatus: 'Sunny',
+    }
+    const { fetchMock, user } = await enterWeather((input, init) => {
+      const url = input.toString()
+      if (url.endsWith('/api/auth/login')) return json(authentication)
+      if (url.includes('/api/weather/external/locations?')) {
+        return json([location])
+      }
+      if (url.endsWith('/api/admin/weather/live/preview')) {
+        return json(preview)
+      }
+      if (url.endsWith('/api/admin/weather/live/save')) {
+        return json({
+          inserted: true,
+          weather: weather({
+            weatherDate: preview.weatherDate,
+            cityName: preview.cityName,
+            temperature: preview.temperature,
+            mainStatus: preview.mainStatus,
+          }),
+        })
+      }
+      return successfulFetch(input, init)
+    })
+
+    await user.type(screen.getByLabelText('Location'), 'İzmir')
+    await user.click(await screen.findByRole('option', {
+      name: location.displayLabel,
+    }))
+    await user.click(screen.getByRole('button', {
+      name: 'Preview live weather',
+    }))
+
+    expect(await screen.findByRole('heading', {
+      name: location.displayLabel,
+    })).toBeInTheDocument()
+    expect(screen.getByText('28.5 °C')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([input]) =>
+      input.toString().endsWith('/api/admin/weather/live/save'),
+    )).toHaveLength(0)
+
+    await user.click(screen.getByRole('button', {
+      name: 'Save preview to Today',
+    }))
+
+    expect(await screen.findByText(
+      /İzmir weather for .* was saved/i,
+    )).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([input]) =>
+      input.toString().endsWith('/api/admin/weather/live/save'),
+    )).toHaveLength(1)
+  })
 })

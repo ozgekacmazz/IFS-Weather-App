@@ -17,6 +17,7 @@ import { ApiError } from '../api/apiError'
 import { isDateOnly } from '../api/dateValidation'
 import { useAuth } from '../auth/useAuth'
 import { AdminAppHeader } from '../components/AdminAppHeader'
+import { AdminLiveWeatherPanel } from '../components/AdminLiveWeatherPanel'
 import { WeatherConditionIcon } from '../components/WeatherConditionIcon'
 
 const pageSize = 20
@@ -575,6 +576,16 @@ export function AdminWeatherPage() {
             Add weather record
           </button>
         </header>
+
+        <AdminLiveWeatherPanel
+          onSaved={(result) => {
+            setSuccessMessage(
+              `${result.weather.cityName} weather for ${formatDate(result.weather.weatherDate)} was ${result.inserted ? 'saved' : 'updated'}.`,
+            )
+            setPageNumber(1)
+            setRefreshVersion((current) => current + 1)
+          }}
+        />
 
         <form className="admin-filter-form" onSubmit={applyFilters} noValidate>
           <FilterField

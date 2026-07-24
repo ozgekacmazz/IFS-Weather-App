@@ -33,6 +33,21 @@ export interface CreateAdminWeatherRequest {
   mainStatus: string
 }
 
+export interface AdminWeatherPreview {
+  latitude: number
+  longitude: number
+  cityName: string
+  displayLabel: string
+  weatherDate: string
+  temperature: number
+  mainStatus: string
+}
+
+export interface SaveAdminWeatherPreviewResult {
+  inserted: boolean
+  weather: AdminWeatherRecord
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -115,6 +130,54 @@ function decodePage(value: unknown): AdminWeatherPage {
   }
 }
 
+function decodePreview(value: unknown): AdminWeatherPreview {
+  if (!isRecord(value)) {
+    throw new TypeError('Invalid admin weather preview')
+  }
+  const {
+    latitude,
+    longitude,
+    cityName,
+    displayLabel,
+    weatherDate,
+    temperature,
+    mainStatus,
+  } = value
+  if (
+    typeof latitude !== 'number' ||
+    !Number.isFinite(latitude) ||
+    typeof longitude !== 'number' ||
+    !Number.isFinite(longitude) ||
+    !isNonEmptyString(cityName) ||
+    !isNonEmptyString(displayLabel) ||
+    !isDateOnly(weatherDate) ||
+    typeof temperature !== 'number' ||
+    !Number.isFinite(temperature) ||
+    !isNonEmptyString(mainStatus)
+  ) {
+    throw new TypeError('Invalid admin weather preview')
+  }
+  return {
+    latitude,
+    longitude,
+    cityName,
+    displayLabel,
+    weatherDate,
+    temperature,
+    mainStatus,
+  }
+}
+
+function decodeSaveResult(value: unknown): SaveAdminWeatherPreviewResult {
+  if (!isRecord(value) || typeof value.inserted !== 'boolean') {
+    throw new TypeError('Invalid admin weather save response')
+  }
+  return {
+    inserted: value.inserted,
+    weather: decodeAdminWeather(value.weather),
+  }
+}
+
 export function getAdminWeather(
   apiClient: ApiClient,
   query: AdminWeatherQuery,
@@ -176,6 +239,35 @@ export function deleteAdminWeather(
     `api/admin/weather/${weatherId}`,
     { method: 'DELETE' },
     () => undefined,
+    true,
+  )
+}
+
+export function previewAdminLiveWeather(
+  apiClient: ApiClient,
+  request: {
+    latitude: number
+    longitude: number
+    cityName: string
+    displayLabel: string
+  },
+): Promise<AdminWeatherPreview> {
+  return apiClient.request(
+    'api/admin/weather/live/preview',
+    { method: 'POST', body: JSON.stringify(request) },
+    decodePreview,
+    true,
+  )
+}
+
+export function saveAdminLiveWeather(
+  apiClient: ApiClient,
+  preview: AdminWeatherPreview,
+): Promise<SaveAdminWeatherPreviewResult> {
+  return apiClient.request(
+    'api/admin/weather/live/save',
+    { method: 'POST', body: JSON.stringify(preview) },
+    decodeSaveResult,
     true,
   )
 }
