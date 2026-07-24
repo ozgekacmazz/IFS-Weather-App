@@ -31,11 +31,28 @@ describe('TemperatureChart', () => {
     )
 
     const values = screen.getAllByRole('listitem')
-    expect(values[0]).toHaveTextContent('-8')
-    expect(values[1]).toHaveTextContent('-2')
+    expect(values[0]).toHaveTextContent('-8 °C')
+    expect(values[1]).toHaveTextContent('-2 °C')
     const path = container.querySelector('.chart-line')?.getAttribute('d')
     expect(path).toMatch(/^M /)
     expect(path).not.toMatch(/NaN|Infinity/)
+  })
+
+  it('provides a described keyboard-accessible mobile scroll region', () => {
+    render(
+      <TemperatureChart items={[weather(1, '2026-07-22', 12.5)]} />,
+    )
+
+    const region = screen.getByRole('region', {
+      name: 'Scrollable weekly temperature chart',
+    })
+    expect(region).toHaveAttribute('tabindex', '0')
+    const descriptionId = region.getAttribute('aria-describedby')
+    expect(descriptionId).toBeTruthy()
+    expect(document.getElementById(descriptionId!)).toHaveTextContent(
+      /scrolled horizontally on smaller screens/i,
+    )
+    expect(screen.getByRole('listitem')).toHaveTextContent(/12[.,]5 °C/)
   })
 
   it('handles identical temperatures without invalid coordinates', () => {

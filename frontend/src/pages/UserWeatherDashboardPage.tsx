@@ -40,6 +40,13 @@ function formatTemperature(value: number) {
   }).format(value)
 }
 
+function formatTimestamp(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
+
 export function UserWeatherDashboardPage() {
   const { apiClient, logout } = useAuth()
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -48,6 +55,7 @@ export function UserWeatherDashboardPage() {
   const [forecast, setForecast] = useState<WeatherForecast | null>(null)
   const [cityInput, setCityInput] = useState('')
   const [cityError, setCityError] = useState<string | null>(null)
+  const [currentMissing, setCurrentMissing] = useState(false)
   const [currentError, setCurrentError] = useState<string | null>(null)
   const [forecastError, setForecastError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -77,6 +85,7 @@ export function UserWeatherDashboardPage() {
     async () => {
       const requestId = ++weatherRequestSequence.current
       setIsWeatherLoading(true)
+      setCurrentMissing(false)
       setCurrentError(null)
       setForecastError(null)
 
@@ -101,12 +110,14 @@ export function UserWeatherDashboardPage() {
       } else {
         setCurrentWeather(null)
         if (!handleUnauthorized(currentResult.reason)) {
-          setCurrentError(
+          if (
             currentResult.reason instanceof ApiError &&
-              currentResult.reason.status === 404
-              ? 'No current weather record is available for this city.'
-              : weatherFailureMessage,
-          )
+            currentResult.reason.status === 404
+          ) {
+            setCurrentMissing(true)
+          } else {
+            setCurrentError(weatherFailureMessage)
+          }
         }
       }
 
@@ -268,6 +279,28 @@ export function UserWeatherDashboardPage() {
     }
   }
 
+  async function refreshWeather() {
+    if (
+      isWeatherLoading ||
+      isSavingCity ||
+      !profile?.defaultCity
+    ) {
+      return
+    }
+
+    setFeedback(null)
+    const result = await loadWeather()
+    if (!isMounted.current) {
+      return
+    }
+
+    setFeedback(
+      result.currentSucceeded && result.forecastSucceeded
+        ? 'Weather information refreshed.'
+        : 'Some weather information could not be refreshed.',
+    )
+  }
+
   return (
     <div className="weather-dashboard">
       <UserAppHeader onSignOut={logout} />
@@ -310,11 +343,13 @@ export function UserWeatherDashboardPage() {
           </form>
         </section>
 
-        <div className="dashboard-feedback" aria-live="polite">
-          {feedback}
-        </div>
+        {profile && feedback ? (
+          <div className="dashboard-feedback" role="status" aria-live="polite">
+            {feedback}
+          </div>
+        ) : null}
 
-        {isInitialLoading ? (
+        {isInitialLoading && !profile ? (
           <section className="dashboard-state" aria-live="polite">
             <h2>Loading your dashboard…</h2>
             <p>Retrieving your profile and weather information.</p>
@@ -338,8 +373,19 @@ export function UserWeatherDashboardPage() {
           </section>
         ) : null}
 
-        {!isInitialLoading && profile?.defaultCity ? (
+        {profile?.defaultCity ? (
           <>
+            <div className="weather-toolbar">
+              <p>Saved weather data for {profile.defaultCity}</p>
+              <button
+                type="button"
+                onClick={() => void refreshWeather()}
+                disabled={isWeatherLoading || isSavingCity}
+              >
+                {isWeatherLoading ? 'Refreshing…' : 'Refresh weather'}
+              </button>
+            </div>
+
             <section className="current-weather-section" aria-labelledby="current-weather-title">
               <div className="section-heading">
                 <div>
@@ -351,26 +397,59 @@ export function UserWeatherDashboardPage() {
                 {isWeatherLoading ? <span>Loading…</span> : null}
               </div>
 
-              {currentWeather ? (
+              {isWeatherLoading && !currentWeather ? (
+                <div
+                  className="weather-skeleton current-weather-skeleton"
+                  role="status"
+                  aria-label="Loading current weather"
+                >
+                  <span className="skeleton-orb" aria-hidden="true" />
+                  <span className="skeleton-copy" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                </div>
+              ) : currentWeather ? (
                 <article className="current-weather-card">
                   <WeatherConditionIcon condition={currentWeather.mainStatus} />
                   <div>
                     <p className="current-temperature">
-                      {formatTemperature(currentWeather.temperature)}
+                      <span>{formatTemperature(currentWeather.temperature)}</span>
+                      <span className="current-temperature-unit">°C</span>
                     </p>
                     <p className="weather-condition">{currentWeather.mainStatus}</p>
                     <time dateTime={currentWeather.weatherDate}>
                       {formatDate(currentWeather.weatherDate)}
                     </time>
+                    <p className="weather-updated">
+                      Last updated{' '}
+                      <time dateTime={currentWeather.updatedAt}>
+                        {formatTimestamp(currentWeather.updatedAt)}
+                      </time>
+                    </p>
                   </div>
                 </article>
+              ) : currentMissing ? (
+                <div className="inline-state inline-state-empty" role="status">
+                  <strong>No weather saved for today</strong>
+                  <p>No current weather record is available for this city.</p>
+                  <button
+                    type="button"
+                    disabled={isSavingCity}
+                    onClick={() => void refreshWeather()}
+                  >
+                    Retry
+                  </button>
+                </div>
               ) : currentError ? (
-                <div className="inline-state" role="status">
+                <div className="inline-state inline-state-error" role="alert">
+                  <strong>Current weather unavailable</strong>
                   <p>{currentError}</p>
                   <button
                     type="button"
                     disabled={isSavingCity}
-                    onClick={() => void loadDashboard()}
+                    onClick={() => void refreshWeather()}
                   >
                     Retry
                   </button>
@@ -397,19 +476,32 @@ export function UserWeatherDashboardPage() {
                 ) : null}
               </div>
 
-              {forecast && forecast.items.length > 0 ? (
+              {isWeatherLoading && !forecast ? (
+                <div
+                  className="weather-skeleton forecast-skeleton"
+                  role="status"
+                  aria-label="Loading weekly forecast"
+                >
+                  <span aria-hidden="true" />
+                  <span aria-hidden="true" />
+                  <span aria-hidden="true" />
+                  <span aria-hidden="true" />
+                </div>
+              ) : forecast && forecast.items.length > 0 ? (
                 <TemperatureChart items={forecast.items} />
               ) : forecast && forecast.items.length === 0 ? (
-                <div className="inline-state">
+                <div className="inline-state inline-state-empty" role="status">
+                  <strong>No weekly forecast saved</strong>
                   <p>No forecast records are available for this week.</p>
                 </div>
               ) : forecastError ? (
-                <div className="inline-state" role="status">
+                <div className="inline-state inline-state-error" role="alert">
+                  <strong>Weekly forecast unavailable</strong>
                   <p>{forecastError}</p>
                   <button
                     type="button"
                     disabled={isSavingCity}
-                    onClick={() => void loadDashboard()}
+                    onClick={() => void refreshWeather()}
                   >
                     Retry
                   </button>
