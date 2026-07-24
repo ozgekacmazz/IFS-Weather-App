@@ -196,7 +196,7 @@ export function AdminLiveWeatherPanel({
       !error &&
       searchedQuery !== null &&
       locations.length === 0 ? (
-        <p className="admin-live-search-state" role="status">
+        <p className="admin-live-search-state motion-reveal" role="status">
           No locations found. Try a different search.
         </p>
       ) : null}
@@ -209,7 +209,7 @@ export function AdminLiveWeatherPanel({
       </button>
 
       {preview ? (
-        <div className="weather-detail-grid">
+        <div className="weather-detail-grid motion-reveal">
           <h3>{preview.displayLabel}</h3>
           <p>{preview.weatherDate}</p>
           <p>{preview.temperature} °C</p>
@@ -223,7 +223,7 @@ export function AdminLiveWeatherPanel({
           </button>
         </div>
       ) : null}
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <p className="motion-reveal" role="alert">{error}</p> : null}
     </section>
   )
 }

@@ -413,6 +413,26 @@ button:focus-visible {
   font-weight: 700;
 }
 
+.motion-reveal {
+  animation: weather-fade-up 280ms ease-out both;
+}
+
+.weather-card-reveal {
+  animation: weather-fade-up 360ms ease-out both;
+}
+
+@keyframes weather-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .dashboard-state,
 .current-weather-section,
 .forecast-section {
@@ -458,6 +478,14 @@ button:focus-visible {
   border-radius: 18px;
   background: linear-gradient(135deg, #0b3156, #126e75);
   color: #fff;
+  transition:
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.current-weather-card:hover {
+  box-shadow: 0 22px 52px rgb(7 24 52 / 20%);
+  transform: translateY(-2px);
 }
 
 .weather-condition-icon {
@@ -470,6 +498,22 @@ button:focus-visible {
   border-radius: 50%;
   background: rgb(255 255 255 / 10%);
   font-size: clamp(3.8rem, 9vw, 7rem);
+}
+
+.weather-card-reveal .weather-condition-icon {
+  animation: weather-icon-enter 380ms 100ms ease-out both;
+}
+
+@keyframes weather-icon-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .current-temperature {
@@ -626,12 +670,40 @@ button:focus-visible {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: chart-line-draw 480ms 120ms ease-out forwards;
 }
 
 .chart-point {
   fill: #fff;
   stroke: #147c82;
   stroke-width: 4;
+}
+
+.chart-point-group {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chart-point-enter 220ms 540ms ease-out forwards;
+}
+
+@keyframes chart-line-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes chart-point-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .chart-value {
@@ -662,6 +734,17 @@ button:focus-visible {
   border: 1px solid #dce8ea;
   border-radius: 12px;
   background: #f0f6f7;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.forecast-list li:hover,
+.forecast-list li:focus-within {
+  border-color: #b9d5d8;
+  box-shadow: 0 10px 22px rgb(16 42 67 / 9%);
+  transform: translateY(-2px);
 }
 
 .forecast-list time,
@@ -679,6 +762,28 @@ button:focus-visible {
   padding: 1.2rem;
   border: 1px solid transparent;
   border-radius: 14px;
+}
+
+.weather-toolbar button,
+.dashboard-state button,
+.inline-state button {
+  transition:
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.weather-toolbar button:not(:disabled):hover,
+.dashboard-state button:not(:disabled):hover,
+.inline-state button:not(:disabled):hover {
+  box-shadow: 0 8px 18px rgb(18 110 117 / 20%);
+  transform: translateY(-1px);
+}
+
+.weather-toolbar button:not(:disabled):active,
+.dashboard-state button:not(:disabled):active,
+.inline-state button:not(:disabled):active {
+  box-shadow: none;
+  transform: translateY(1px);
 }
 
 .inline-state strong {
@@ -1080,6 +1185,7 @@ button:focus-visible {
   overflow-y: auto;
   padding: 1rem;
   background: rgb(7 24 52 / 68%);
+  animation: modal-backdrop-enter 180ms ease-out both;
 }
 
 .admin-modal {
@@ -1088,6 +1194,25 @@ button:focus-visible {
   border-radius: 20px;
   background: #fff;
   box-shadow: 0 28px 80px rgb(7 24 52 / 30%);
+  animation: modal-content-enter 220ms ease-out both;
+}
+
+@keyframes modal-backdrop-enter {
+  from {
+    background: rgb(7 24 52 / 0%);
+  }
+}
+
+@keyframes modal-content-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .admin-modal h2 {
@@ -1181,6 +1306,15 @@ button:focus-visible {
   font-size: 0.78rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.admin-table-card tbody tr {
+  transition: background-color 150ms ease;
+}
+
+.admin-table-card tbody tr:hover,
+.admin-table-card tbody tr:focus-within {
+  background: #f3f8f9;
 }
 
 .status-badge {
@@ -1467,9 +1601,42 @@ button:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .motion-reveal,
+  .weather-card-reveal,
+  .weather-card-reveal .weather-condition-icon,
+  .chart-line,
+  .chart-point-group,
+  .modal-backdrop,
+  .admin-modal,
   .skeleton-orb,
   .skeleton-copy span,
   .forecast-skeleton span {
-    animation: none;
+    animation: none !important;
+  }
+
+  .current-weather-card,
+  .forecast-list li,
+  .weather-toolbar button,
+  .dashboard-state button,
+  .inline-state button,
+  .admin-table-card tbody tr {
+    transition: none !important;
+  }
+
+  .motion-reveal,
+  .weather-card-reveal,
+  .weather-card-reveal .weather-condition-icon,
+  .chart-point-group,
+  .current-weather-card:hover,
+  .forecast-list li:hover,
+  .forecast-list li:focus-within,
+  .weather-toolbar button:not(:disabled):hover,
+  .weather-toolbar button:not(:disabled):active,
+  .dashboard-state button:not(:disabled):hover,
+  .dashboard-state button:not(:disabled):active,
+  .inline-state button:not(:disabled):hover,
+  .inline-state button:not(:disabled):active,
+  .admin-modal {
+    transform: none !important;
   }
 }

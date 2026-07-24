@@ -306,7 +306,7 @@ export function UserWeatherDashboardPage() {
       <UserAppHeader onSignOut={logout} />
 
       <main className="dashboard-content">
-        <section className="dashboard-intro">
+        <section className="dashboard-intro motion-reveal">
           <div>
             <p className="eyebrow">Weather workspace</p>
             <h1>Your weather, at a glance.</h1>
@@ -344,20 +344,20 @@ export function UserWeatherDashboardPage() {
         </section>
 
         {profile && feedback ? (
-          <div className="dashboard-feedback" role="status" aria-live="polite">
+          <div className="dashboard-feedback motion-reveal" role="status" aria-live="polite">
             {feedback}
           </div>
         ) : null}
 
         {isInitialLoading && !profile ? (
-          <section className="dashboard-state" aria-live="polite">
+          <section className="dashboard-state motion-reveal" aria-live="polite">
             <h2>Loading your dashboard…</h2>
             <p>Retrieving your profile and weather information.</p>
           </section>
         ) : null}
 
         {!isInitialLoading && !profile ? (
-          <section className="dashboard-state">
+          <section className="dashboard-state motion-reveal">
             <h2>Dashboard unavailable</h2>
             <p>{feedback ?? 'Your profile could not be loaded.'}</p>
             <button type="button" onClick={() => void loadDashboard()}>
@@ -367,7 +367,7 @@ export function UserWeatherDashboardPage() {
         ) : null}
 
         {!isInitialLoading && profile && !profile.defaultCity ? (
-          <section className="dashboard-state">
+          <section className="dashboard-state motion-reveal">
             <h2>Choose your default city</h2>
             <p>Add a city above to load current and weekly weather information.</p>
           </section>
@@ -375,7 +375,7 @@ export function UserWeatherDashboardPage() {
 
         {profile?.defaultCity ? (
           <>
-            <div className="weather-toolbar">
+            <div className="weather-toolbar motion-reveal">
               <p>Saved weather data for {profile.defaultCity}</p>
               <button
                 type="button"
@@ -386,7 +386,7 @@ export function UserWeatherDashboardPage() {
               </button>
             </div>
 
-            <section className="current-weather-section" aria-labelledby="current-weather-title">
+            <section className="current-weather-section motion-reveal" aria-labelledby="current-weather-title">
               <div className="section-heading">
                 <div>
                   <p className="eyebrow">Current weather</p>
@@ -411,7 +411,7 @@ export function UserWeatherDashboardPage() {
                   </span>
                 </div>
               ) : currentWeather ? (
-                <article className="current-weather-card">
+                <article className="current-weather-card weather-card-reveal">
                   <WeatherConditionIcon condition={currentWeather.mainStatus} />
                   <div>
                     <p className="current-temperature">
@@ -431,7 +431,7 @@ export function UserWeatherDashboardPage() {
                   </div>
                 </article>
               ) : currentMissing ? (
-                <div className="inline-state inline-state-empty" role="status">
+                <div className="inline-state inline-state-empty motion-reveal" role="status">
                   <strong>No weather saved for today</strong>
                   <p>No current weather record is available for this city.</p>
                   <button
@@ -443,7 +443,7 @@ export function UserWeatherDashboardPage() {
                   </button>
                 </div>
               ) : currentError ? (
-                <div className="inline-state inline-state-error" role="alert">
+                <div className="inline-state inline-state-error motion-reveal" role="alert">
                   <strong>Current weather unavailable</strong>
                   <p>{currentError}</p>
                   <button
@@ -457,7 +457,7 @@ export function UserWeatherDashboardPage() {
               ) : null}
             </section>
 
-            <section className="forecast-section" aria-labelledby="forecast-title">
+            <section className="forecast-section motion-reveal" aria-labelledby="forecast-title">
               <div className="section-heading">
                 <div>
                   <p className="eyebrow">Current week</p>
@@ -490,12 +490,12 @@ export function UserWeatherDashboardPage() {
               ) : forecast && forecast.items.length > 0 ? (
                 <TemperatureChart items={forecast.items} />
               ) : forecast && forecast.items.length === 0 ? (
-                <div className="inline-state inline-state-empty" role="status">
+                <div className="inline-state inline-state-empty motion-reveal" role="status">
                   <strong>No weekly forecast saved</strong>
                   <p>No forecast records are available for this week.</p>
                 </div>
               ) : forecastError ? (
-                <div className="inline-state inline-state-error" role="alert">
+                <div className="inline-state inline-state-error motion-reveal" role="alert">
                   <strong>Weekly forecast unavailable</strong>
                   <p>{forecastError}</p>
                   <button
