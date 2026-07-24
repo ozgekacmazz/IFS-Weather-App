@@ -51,6 +51,26 @@ const izmir = {
   displayLabel: 'İzmir, Izmir, Türkiye',
 }
 
+const diyarbakir = {
+  providerLocationId: 45,
+  name: 'Diyarbakir',
+  region: 'Diyarbakir',
+  country: 'Turkey',
+  latitude: 37.91441,
+  longitude: 40.23063,
+  displayLabel: 'Diyarbakir, Diyarbakir, Turkey',
+}
+
+const denizli = {
+  providerLocationId: 44,
+  name: 'Denizli',
+  region: 'Denizli',
+  country: 'Turkey',
+  latitude: 37.77652,
+  longitude: 29.08639,
+  displayLabel: 'Denizli, Denizli, Turkey',
+}
+
 function profile(defaultCity: string | null = null) {
   return {
     userId: 7,
@@ -402,7 +422,7 @@ describe('ExternalWeatherForecastPage', () => {
       await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
 
       expect(
-        await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
+        await screen.findByRole('heading', { name: aydin.displayLabel }),
       ).toBeInTheDocument()
       expect(screen.getAllByRole('listitem')).toHaveLength(days)
       expect(screen.getByText(/24[.,]5 °C/)).toBeInTheDocument()
@@ -414,6 +434,72 @@ describe('ExternalWeatherForecastPage', () => {
       )
       expect(forecastUrl).not.toContain('city=')
       expect(callsFor(fetchMock, '/external/forecast?')).toHaveLength(0)
+    },
+  )
+
+  it('removes duplicate location components while preserving coordinates', async () => {
+    const { fetchMock, user } = await enterLivePage((input) => {
+      const url = input.toString()
+      if (url.includes('/locations?')) return response([denizli])
+      if (url.includes('/forecast/coordinates?')) {
+        return response(forecast('Basmahane'))
+      }
+      return baseFetch(input)
+    })
+
+    const input = await searchFor(user, 'Denizli')
+    await user.click(await screen.findByRole('option', {
+      name: 'Denizli, Turkey',
+    }))
+    expect(input).toHaveValue('Denizli, Turkey')
+
+    await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Denizli, Turkey' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Denizli, Denizli, Turkey/)).not.toBeInTheDocument()
+    expect(callsFor(fetchMock, '/forecast/coordinates?')[0][0].toString())
+      .toContain(
+        `latitude=${denizli.latitude}&longitude=${denizli.longitude}&days=3`,
+      )
+  })
+
+  it.each([
+    [izmir, 'Basmahane'],
+    [diyarbakir, 'Amida'],
+    [aydin, 'Aidin'],
+  ])(
+    'keeps selected location %s stable when the provider returns alias %s',
+    async (selectedLocation, providerAlias) => {
+      const { user } = await enterLivePage((input) => {
+        if (input.toString().includes('/locations?')) {
+          return response([selectedLocation])
+        }
+        if (input.toString().includes('/forecast/coordinates?')) {
+          return response(forecast(providerAlias))
+        }
+        return baseFetch(input)
+      })
+      const expectedLabel =
+        selectedLocation.name === selectedLocation.region
+          ? `${selectedLocation.name}, ${selectedLocation.country}`
+          : selectedLocation.displayLabel
+      await searchFor(user, selectedLocation.name)
+      await user.click(await screen.findByRole('option', {
+        name: expectedLabel,
+      }))
+      await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
+
+      expect(
+        await screen.findByRole('heading', { name: expectedLabel }),
+      ).toBeInTheDocument()
+      expect(screen.queryByRole('heading', {
+        name: `${providerAlias}, TÃ¼rkiye`,
+      })).not.toBeInTheDocument()
+      expect(screen.getByText(
+        `Live forecast loaded for ${expectedLabel}.`,
+      )).toBeInTheDocument()
     },
   )
 
@@ -449,12 +535,12 @@ describe('ExternalWeatherForecastPage', () => {
     const input = await selectLocation(user)
     await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
     expect(
-      await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
+      await screen.findByRole('heading', { name: aydin.displayLabel }),
     ).toBeInTheDocument()
 
     await user.type(input, 'x')
     expect(
-      screen.queryByRole('heading', { name: 'Aydın, Türkiye' }),
+      screen.queryByRole('heading', { name: aydin.displayLabel }),
     ).not.toBeInTheDocument()
 
     await user.clear(input)
@@ -475,12 +561,12 @@ describe('ExternalWeatherForecastPage', () => {
     })
     const input = await selectLocation(user)
     await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
-    await screen.findByRole('heading', { name: 'Aydın, Türkiye' })
+    await screen.findByRole('heading', { name: aydin.displayLabel })
 
     await user.clear(input)
     await user.type(input, 'Missing')
     expect(
-      screen.queryByRole('heading', { name: 'Aydın, Türkiye' }),
+      screen.queryByRole('heading', { name: aydin.displayLabel }),
     ).not.toBeInTheDocument()
     expect(await screen.findByText('No matching locations found.')).toBeInTheDocument()
 
@@ -491,7 +577,7 @@ describe('ExternalWeatherForecastPage', () => {
     )
     expect(screen.queryByText('provider secret')).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('heading', { name: 'Aydın, Türkiye' }),
+      screen.queryByRole('heading', { name: aydin.displayLabel }),
     ).not.toBeInTheDocument()
   })
 
@@ -499,7 +585,7 @@ describe('ExternalWeatherForecastPage', () => {
     const { user } = await enterLivePage()
     const input = await selectLocation(user)
     await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
-    await screen.findByRole('heading', { name: 'Aydın, Türkiye' })
+    await screen.findByRole('heading', { name: aydin.displayLabel })
 
     await user.clear(input)
     await user.type(input, 'Aydın')
@@ -509,7 +595,7 @@ describe('ExternalWeatherForecastPage', () => {
 
     expect(input).toHaveValue(aydinOhio.displayLabel)
     expect(
-      screen.queryByRole('heading', { name: 'Aydın, Türkiye' }),
+      screen.queryByRole('heading', { name: aydin.displayLabel }),
     ).not.toBeInTheDocument()
     expect(
       screen.getByText(`Ready to retrieve weather for ${aydinOhio.displayLabel}.`),
@@ -608,7 +694,7 @@ describe('ExternalWeatherForecastPage', () => {
     ).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Get live forecast' }))
     expect(
-      await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
+      await screen.findByRole('heading', { name: aydin.displayLabel }),
     ).toBeInTheDocument()
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
 
@@ -662,7 +748,7 @@ describe('ExternalWeatherForecastPage', () => {
       }),
     )
     expect(
-      await screen.findByRole('heading', { name: 'Current Aydın, Türkiye' }),
+      await screen.findByRole('heading', { name: aydin.displayLabel }),
     ).toBeInTheDocument()
     expect(screen.queryByText('stale provider detail')).not.toBeInTheDocument()
   })
@@ -687,7 +773,7 @@ describe('ExternalWeatherForecastPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Retry forecast' }))
     expect(
-      await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
+      await screen.findByRole('heading', { name: aydin.displayLabel }),
     ).toBeInTheDocument()
     const retryUrl = callsFor(fetchMock, '/forecast/coordinates?')[1][0].toString()
     expect(retryUrl).toContain(
@@ -742,7 +828,7 @@ describe('ExternalWeatherForecastPage', () => {
       new Response(JSON.stringify(forecast()), { status: 200 }),
     )
     expect(
-      await screen.findByRole('heading', { name: 'Aydın, Türkiye' }),
+      await screen.findByRole('heading', { name: aydin.displayLabel }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Get live forecast' }),

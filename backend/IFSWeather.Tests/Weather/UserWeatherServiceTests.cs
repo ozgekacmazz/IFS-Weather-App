@@ -12,6 +12,28 @@ namespace IFSWeather.Tests.Weather;
 
 public sealed class UserWeatherServiceTests
 {
+    [Fact]
+    public async Task GetCurrentWeatherAsync_UsesCurrentUtcDateAndNormalizedDefaultCity()
+    {
+        var currentDate = new DateOnly(2026, 7, 24);
+        var fixture = CreateFixture(
+            currentDate,
+            "  New   York ",
+            [
+                CreateWeatherInfo(1, currentDate.AddDays(-1), "New York", 20m),
+                CreateWeatherInfo(2, currentDate, "new york", 22m)
+            ]);
+
+        var response = await fixture.Service.GetCurrentWeatherAsync(
+            new CurrentWeatherQuery(),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("New York", fixture.WeatherRepository.RequestedCity);
+        Assert.Equal(currentDate, fixture.WeatherRepository.RequestedDate);
+        Assert.Equal(2, response.WeatherId);
+        Assert.Equal(currentDate, response.WeatherDate);
+    }
+
     [Theory]
     [InlineData("2026-07-20", "2026-07-20")]
     [InlineData("2026-07-22", "2026-07-20")]
@@ -228,6 +250,8 @@ public sealed class UserWeatherServiceTests
 
         public DateOnly? RequestedEndDate { get; private set; }
 
+        public DateOnly? RequestedDate { get; private set; }
+
         public Task<IReadOnlyList<WeatherInfo>> GetByCityAndDateRangeAsync(
             string cityName,
             DateOnly startDate,
@@ -273,8 +297,20 @@ public sealed class UserWeatherServiceTests
         public Task<WeatherInfo?> GetByCityAndDateAsync(
             string cityName,
             DateOnly date,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
+            CancellationToken cancellationToken = default)
+        {
+            RequestedCity = cityName;
+            RequestedDate = date;
+
+            var result = _weatherInfos.SingleOrDefault(weather =>
+                weather.WeatherDate == date
+                && string.Equals(
+                    weather.CityName,
+                    cityName,
+                    StringComparison.OrdinalIgnoreCase));
+
+            return Task.FromResult(result);
+        }
 
         public Task<bool> ExistsForCityAndDateAsync(
             string cityName,

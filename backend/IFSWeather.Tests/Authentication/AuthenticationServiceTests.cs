@@ -18,6 +18,44 @@ public sealed class AuthenticationServiceTests
         new(2026, 7, 22, 12, 0, 0, DateTimeKind.Utc);
 
     [Fact]
+    public async Task RegisteredUser_CanLoginWithSamePasswordUsingProductionHasher()
+    {
+        const string password = "Weather123";
+        var repository = new InMemoryUserRepository(null);
+        var tokenService = new RecordingTokenService();
+        var audit = new RecordingAuditService();
+        var service = CreateService(
+            repository,
+            tokenService,
+            audit,
+            new PasswordHasher());
+
+        var registration = await service.RegisterAsync(
+            new RegisterRequest(
+                "Test",
+                "User",
+                "registered-user",
+                "registered@example.com",
+                password,
+                "Denizli"),
+            TestContext.Current.CancellationToken);
+        var login = await service.LoginAsync(
+            new LoginRequest("registered-user", password),
+            null,
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(repository.User);
+        Assert.NotEmpty(repository.User.PasswordHash);
+        Assert.NotEqual(password, repository.User.PasswordHash);
+        Assert.Equal(UserStatus.Active, repository.User.Status);
+        Assert.Equal(UserRole.User, repository.User.Role);
+        Assert.Equal(0, repository.User.FailedLoginAttempts);
+        Assert.Null(repository.User.LockoutEndUtc);
+        Assert.Equal(registration.UserId, login.UserId);
+        Assert.Equal(LoginAuditOutcome.Succeeded, audit.Outcomes.Single());
+    }
+
+    [Fact]
     public async Task FirstFailedAttempt_PersistsCountOneWithoutLock()
     {
         var fixture = CreateFixture();
@@ -334,7 +372,7 @@ public sealed class AuthenticationServiceTests
             User = user;
         }
 
-        public User? User { get; }
+        public User? User { get; private set; }
 
         public int TransitionSaveCount { get; private set; }
 
@@ -383,8 +421,12 @@ public sealed class AuthenticationServiceTests
         public Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken) =>
             Task.FromResult(false);
 
-        public Task AddAsync(User user, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+        public Task AddAsync(User user, CancellationToken cancellationToken)
+        {
+            user.Id = 43;
+            User = user;
+            return Task.CompletedTask;
+        }
 
         public Task SaveChangesAsync(CancellationToken cancellationToken) =>
             Task.CompletedTask;

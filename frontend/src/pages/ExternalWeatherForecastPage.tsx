@@ -80,6 +80,28 @@ function formatTemperature(value: number) {
   }).format(value)} °C`
 }
 
+function locationDisplayLabel(location: ExternalWeatherLocation) {
+  const uniqueParts: string[] = []
+
+  for (const part of [location.name, location.region, location.country]) {
+    const trimmedPart = part?.trim()
+
+    if (
+      trimmedPart &&
+      !uniqueParts.some(
+        (existingPart) =>
+          existingPart.localeCompare(trimmedPart, undefined, {
+            sensitivity: 'accent',
+          }) === 0,
+      )
+    ) {
+      uniqueParts.push(trimmedPart)
+    }
+  }
+
+  return uniqueParts.join(', ')
+}
+
 function locationKey(
   location: ExternalWeatherLocation,
   allLocations: ExternalWeatherLocation[],
@@ -231,7 +253,7 @@ export function ExternalWeatherForecastPage() {
 
     if (
       selectedLocation &&
-      locationText === selectedLocation.displayLabel
+      locationText === locationDisplayLabel(selectedLocation)
     ) {
       return
     }
@@ -305,6 +327,8 @@ export function ExternalWeatherForecastPage() {
   }, [])
 
   function chooseLocation(location: ExternalWeatherLocation) {
+    const displayLabel = locationDisplayLabel(location)
+
     searchSequence.current += 1
     requestSequence.current += 1
     forecastController.current?.abort()
@@ -312,14 +336,14 @@ export function ExternalWeatherForecastPage() {
     activeSubmissionKeys.current.clear()
     selectedLocationRef.current = location
     setSelectedLocation(location)
-    setLocationText(location.displayLabel)
+    setLocationText(displayLabel)
     setValidationError(null)
     setLocations([])
     setSearchState('idle')
     setIsAutocompleteOpen(false)
     setActiveOptionIndex(-1)
     setForecastState({ status: 'idle' })
-    setAnnouncement(`Selected ${location.displayLabel}.`)
+    setAnnouncement(`Selected ${displayLabel}.`)
     locationInputRef.current?.focus()
   }
 
@@ -397,7 +421,7 @@ export function ExternalWeatherForecastPage() {
     const currentLocation = selectedLocationRef.current
     const currentDays = daysRef.current
 
-    if (!currentLocation || locationText !== currentLocation.displayLabel) {
+    if (!currentLocation || locationText !== locationDisplayLabel(currentLocation)) {
       setValidationError('Select a location from the suggestions.')
       setForecastState({ status: 'idle' })
       locationInputRef.current?.focus()
@@ -458,7 +482,7 @@ export function ExternalWeatherForecastPage() {
 
       setForecastState({ status: 'success', owner, response })
       setAnnouncement(
-        `Live forecast loaded for ${response.cityName}, ${response.country}.`,
+        `Live forecast loaded for ${locationDisplayLabel(currentLocation)}.`,
       )
       window.setTimeout(() => {
         if (mounted.current && requestSequence.current === requestId) {
@@ -621,7 +645,7 @@ export function ExternalWeatherForecastPage() {
                         }}
                         onPointerMove={() => setActiveOptionIndex(index)}
                       >
-                        {location.displayLabel}
+                        {locationDisplayLabel(location)}
                       </div>
                     ))
                   : null}
@@ -674,7 +698,9 @@ export function ExternalWeatherForecastPage() {
           <section className="dashboard-state" aria-live="polite">
             <h2>Loading live forecast</h2>
             <p>
-              Retrieving weather for {selectedLocation?.displayLabel}.
+              Retrieving weather for {selectedLocation
+                ? locationDisplayLabel(selectedLocation)
+                : ''}.
             </p>
           </section>
         ) : null}
@@ -684,7 +710,7 @@ export function ExternalWeatherForecastPage() {
             <h2>Choose a location to begin</h2>
             <p>
               {selectedLocation
-                ? `Ready to retrieve weather for ${selectedLocation.displayLabel}.`
+                ? `Ready to retrieve weather for ${locationDisplayLabel(selectedLocation)}.`
                 : 'No live forecast request is made until you select a location.'}
             </p>
           </section>
@@ -703,7 +729,9 @@ export function ExternalWeatherForecastPage() {
                   id="live-forecast-results-title"
                   tabIndex={-1}
                 >
-                  {currentForecast.cityName}, {currentForecast.country}
+                  {selectedLocation
+                    ? locationDisplayLabel(selectedLocation)
+                    : `${currentForecast.cityName}, ${currentForecast.country}`}
                 </h2>
               </div>
               <span>

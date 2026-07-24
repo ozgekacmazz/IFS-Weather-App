@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { ApiError } from '../api/apiError'
 import { getSafePostAuthenticationPath } from '../auth/authNavigation'
 import { useAuth } from '../auth/useAuth'
 
@@ -54,9 +55,18 @@ export function LoginPage() {
         ),
         { replace: true },
       )
-    } catch {
-      setPassword('')
-      setErrorMessage(genericLoginError)
+    } catch (error: unknown) {
+      const isNetworkError = error instanceof ApiError && error.status === null
+
+      if (!isNetworkError) {
+        setPassword('')
+      }
+
+      setErrorMessage(
+        isNetworkError
+          ? 'The API service could not be reached. Check the frontend API URL and confirm the backend is running.'
+          : genericLoginError,
+      )
     } finally {
       submissionInProgress.current = false
       setIsSubmitting(false)
