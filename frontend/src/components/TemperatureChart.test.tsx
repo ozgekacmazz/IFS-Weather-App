@@ -36,6 +36,11 @@ describe('TemperatureChart', () => {
     const path = container.querySelector('.chart-line')?.getAttribute('d')
     expect(path).toMatch(/^M /)
     expect(path).not.toMatch(/NaN|Infinity/)
+    expect(container.querySelector('.chart-line')).toHaveAttribute(
+      'pathLength',
+      '1',
+    )
+    expect(container.querySelectorAll('.chart-point-group')).toHaveLength(2)
   })
 
   it('provides a described keyboard-accessible mobile scroll region', () => {

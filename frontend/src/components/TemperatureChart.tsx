@@ -87,9 +87,12 @@ export function TemperatureChart({ items }: TemperatureChartProps) {
             x2={chartWidth - horizontalPadding}
             y2={chartHeight - verticalPadding}
           />
-          <path className="chart-line" d={path} />
+          <path className="chart-line" d={path} pathLength="1" />
           {points.map(({ item, x, y }) => (
-            <g key={`${item.weatherDate}-${item.weatherId}`}>
+            <g
+              className="chart-point-group"
+              key={`${item.weatherDate}-${item.weatherId}`}
+            >
               <circle className="chart-point" cx={x} cy={y} r="6" />
               <text className="chart-value" x={x} y={y - 14} textAnchor="middle">
                 {formatTemperature(item.temperature)}°

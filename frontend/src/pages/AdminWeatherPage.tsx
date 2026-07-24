@@ -744,32 +744,32 @@ export function AdminWeatherPage() {
           </div>
         </form>
 
-        <p className="profile-success admin-weather-success" aria-live="polite">
+        <p className="profile-success admin-weather-success motion-reveal" aria-live="polite">
           {successMessage}
         </p>
 
         {isLoading ? (
-          <section className="dashboard-state" aria-live="polite">
+          <section className="dashboard-state motion-reveal" aria-live="polite">
             <h2>Loading weather records…</h2>
             <p>Retrieving weather management data.</p>
           </section>
         ) : null}
         {!isLoading && listError ? (
-          <section className="dashboard-state">
+          <section className="dashboard-state motion-reveal">
             <h2>Weather records unavailable</h2>
             <p role="alert">{listError}</p>
             <button type="button" onClick={() => void loadWeather()}>Try again</button>
           </section>
         ) : null}
         {!isLoading && weatherPage?.items.length === 0 ? (
-          <section className="dashboard-state">
+          <section className="dashboard-state motion-reveal">
             <h2>{filtersApplied ? 'No matching weather records' : 'No weather records yet'}</h2>
             <p>{filtersApplied ? 'Try different city or date filters.' : 'Add a weather record to get started.'}</p>
           </section>
         ) : null}
 
         {!isLoading && weatherPage && weatherPage.items.length > 0 ? (
-          <section className="admin-table-card" aria-labelledby="weather-results-title">
+          <section className="admin-table-card motion-reveal" aria-labelledby="weather-results-title">
             <div className="section-heading">
               <h2 id="weather-results-title">Weather records</h2>
               <span>{weatherPage.totalCount} total</span>
@@ -804,7 +804,7 @@ export function AdminWeatherPage() {
         ) : null}
 
         {(isDetailLoading || detailError || detail) ? (
-          <section className="admin-detail-card" aria-labelledby="weather-detail-title">
+          <section className="admin-detail-card motion-reveal" aria-labelledby="weather-detail-title">
             <div className="section-heading">
               <h2 id="weather-detail-title">Weather record details</h2>
               <button className="secondary-button" type="button" onClick={closeDetail} disabled={isMutating}>Close details</button>
