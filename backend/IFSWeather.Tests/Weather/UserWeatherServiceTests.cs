@@ -318,6 +318,13 @@ public sealed class UserWeatherServiceTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
+        public Task<bool> ExistsForCityAndDateExceptAsync(
+            string cityName,
+            DateOnly weatherDate,
+            int excludedWeatherId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task AddAsync(
             WeatherInfo weatherInfo,
             CancellationToken cancellationToken = default) =>

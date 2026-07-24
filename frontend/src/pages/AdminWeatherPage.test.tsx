@@ -453,6 +453,86 @@ describe('AdminWeatherPage', () => {
     expect(screen.queryByText('private detail')).not.toBeInTheDocument()
   })
 
+  it('opens edit from detail, normalizes fields, updates once, and refreshes', async () => {
+    const updated = weather({
+      cityName: 'İzmir City',
+      temperature: 28,
+      mainStatus: 'Partly cloudy',
+      updatedAt: '2026-07-25T09:30:00Z',
+    })
+    let updateCompleted = false
+    const { fetchMock, user } = await enterWeather((input, init) => {
+      const url = input.toString()
+      if (url.endsWith('/api/auth/login')) return json(authentication)
+      if (init?.method === 'PUT') {
+        updateCompleted = true
+        return json(updated)
+      }
+      if (/\/api\/admin\/weather\/4$/.test(new URL(url).pathname)) {
+        return json(weather())
+      }
+      return json(page({ items: [updateCompleted ? updated : weather()] }))
+    })
+
+    await openDetail(user)
+    await user.click(screen.getByRole('button', { name: 'Edit weather record' }))
+    const dialog = screen.getByRole('dialog', { name: 'Edit weather record' })
+    expect(within(dialog).getByLabelText('Weather date')).toHaveValue('2026-07-23')
+    expect(within(dialog).getByLabelText('City name')).toHaveValue('Denizli')
+
+    const city = within(dialog).getByLabelText('City name')
+    const temperature = within(dialog).getByLabelText('Temperature (°C)')
+    const status = within(dialog).getByLabelText('Main status')
+    await user.clear(city)
+    await user.type(city, '  İzmir   City  ')
+    await user.clear(temperature)
+    await user.type(temperature, '28')
+    await user.clear(status)
+    await user.type(status, '  Partly   cloudy  ')
+    await user.click(within(dialog).getByRole('button', { name: 'Update record' }))
+
+    expect(await screen.findByText(/İzmir City weather record.*was updated/i))
+      .toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Edit weather record' }))
+      .not.toBeInTheDocument()
+    expect(screen.getAllByText('İzmir City').length).toBeGreaterThan(0)
+
+    const putCall = fetchMock.mock.calls.find(([, options]) =>
+      options?.method === 'PUT')
+    expect(putCall?.[0].toString()).toBe(
+      `${apiBaseUrl}/api/admin/weather/4`,
+    )
+    expect(putCall?.[1]?.body).toBe(JSON.stringify({
+      weatherDate: '2026-07-23',
+      cityName: 'İzmir City',
+      temperature: 28,
+      mainStatus: 'Partly cloudy',
+    }))
+    expect(fetchMock.mock.calls.filter(([, options]) => options?.method === 'PUT'))
+      .toHaveLength(1)
+  })
+
+  it('keeps the edit dialog open and explains city/date conflicts', async () => {
+    const { user } = await enterWeather((input, init) => {
+      if (input.toString().endsWith('/api/auth/login')) return json(authentication)
+      if (init?.method === 'PUT') return json({ title: 'Conflict' }, 409)
+      if (/\/api\/admin\/weather\/4$/.test(new URL(input.toString()).pathname)) {
+        return json(weather())
+      }
+      return json(page())
+    })
+
+    await openDetail(user)
+    await user.click(screen.getByRole('button', { name: 'Edit weather record' }))
+    await user.click(screen.getByRole('button', { name: 'Update record' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'A weather record already exists for that city and date.',
+    )
+    expect(screen.getByRole('dialog', { name: 'Edit weather record' }))
+      .toBeInTheDocument()
+  })
+
   it('confirms deletion, prevents duplicates, accepts 204, and refreshes', async () => {
     let resolveDelete: ((response: Response) => void) | undefined
     const { fetchMock, user } = await enterWeather((input, init) => {
