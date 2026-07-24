@@ -18,6 +18,11 @@ public interface IWeatherManagementService
         CreateWeatherRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<WeatherResponse> UpdateWeatherAsync(
+        int weatherId,
+        UpdateWeatherRequest request,
+        CancellationToken cancellationToken = default);
+
     Task DeleteWeatherAsync(
         int weatherId,
         CancellationToken cancellationToken = default);

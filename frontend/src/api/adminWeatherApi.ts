@@ -33,6 +33,8 @@ export interface CreateAdminWeatherRequest {
   mainStatus: string
 }
 
+export type UpdateAdminWeatherRequest = CreateAdminWeatherRequest
+
 export interface AdminWeatherPreview {
   latitude: number
   longitude: number
@@ -224,6 +226,22 @@ export function createAdminWeather(
     'api/admin/weather',
     {
       method: 'POST',
+      body: JSON.stringify(request),
+    },
+    decodeAdminWeather,
+    true,
+  )
+}
+
+export function updateAdminWeather(
+  apiClient: ApiClient,
+  weatherId: number,
+  request: UpdateAdminWeatherRequest,
+): Promise<AdminWeatherRecord> {
+  return apiClient.request(
+    `api/admin/weather/${weatherId}`,
+    {
+      method: 'PUT',
       body: JSON.stringify(request),
     },
     decodeAdminWeather,

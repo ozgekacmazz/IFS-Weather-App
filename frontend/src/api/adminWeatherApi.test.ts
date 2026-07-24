@@ -7,6 +7,7 @@ import {
   getAdminWeatherById,
   previewAdminLiveWeather,
   saveAdminLiveWeather,
+  updateAdminWeather,
 } from './adminWeatherApi'
 
 const apiBaseUrl = 'https://localhost:7257'
@@ -99,6 +100,30 @@ describe('admin weather API', () => {
     const [url, options] = fetchMock.mock.calls[0]
     expect(url.toString()).toBe(`${apiBaseUrl}/api/admin/weather`)
     expect(options?.method).toBe('POST')
+    expect(options?.body).toBe(JSON.stringify(request))
+  })
+
+  it('sends exact PUT body and returns the authoritative updated record', async () => {
+    const updated = weather({
+      cityName: 'İzmir',
+      temperature: 28,
+      mainStatus: 'Partly cloudy',
+      updatedAt: '2026-07-25T09:30:00Z',
+    })
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(updated), { status: 200 }),
+    )
+    const request = {
+      weatherDate: '2026-07-23',
+      cityName: 'İzmir',
+      temperature: 28,
+      mainStatus: 'Partly cloudy',
+    }
+
+    await expect(updateAdminWeather(client(), 4, request)).resolves.toEqual(updated)
+    const [url, options] = fetchMock.mock.calls[0]
+    expect(url.toString()).toBe(`${apiBaseUrl}/api/admin/weather/4`)
+    expect(options?.method).toBe('PUT')
     expect(options?.body).toBe(JSON.stringify(request))
   })
 

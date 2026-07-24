@@ -10,6 +10,7 @@ import {
   deleteAdminWeather,
   getAdminWeather,
   getAdminWeatherById,
+  updateAdminWeather,
   type AdminWeatherPage,
   type AdminWeatherRecord,
 } from '../api/adminWeatherApi'
@@ -165,6 +166,10 @@ export function AdminWeatherPage() {
   const [createFields, setCreateFields] = useState(emptyCreateFields)
   const [createErrors, setCreateErrors] = useState<CreateErrors>({})
   const [createError, setCreateError] = useState<string | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editFields, setEditFields] = useState(emptyCreateFields)
+  const [editErrors, setEditErrors] = useState<CreateErrors>({})
+  const [editError, setEditError] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [isMutating, setIsMutating] = useState(false)
@@ -180,6 +185,10 @@ export function AdminWeatherPage() {
   const createHeadingRef = useRef<HTMLHeadingElement>(null)
   const createDialogRef = useRef<HTMLElement>(null)
   const createCancelRef = useRef<HTMLButtonElement>(null)
+  const editButtonRef = useRef<HTMLButtonElement>(null)
+  const editHeadingRef = useRef<HTMLHeadingElement>(null)
+  const editDialogRef = useRef<HTMLElement>(null)
+  const editCancelRef = useRef<HTMLButtonElement>(null)
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const deleteHeadingRef = useRef<HTMLHeadingElement>(null)
   const deleteDialogRef = useRef<HTMLElement>(null)
@@ -260,6 +269,12 @@ export function AdminWeatherPage() {
   }, [createOpen])
 
   useEffect(() => {
+    if (editOpen) {
+      editHeadingRef.current?.focus()
+    }
+  }, [editOpen])
+
+  useEffect(() => {
     if (deleteOpen) {
       deleteHeadingRef.current?.focus()
     }
@@ -275,20 +290,26 @@ export function AdminWeatherPage() {
   }, [listInstallVersion])
 
   useEffect(() => {
-    if (!createOpen && !deleteOpen) {
+    if (!createOpen && !editOpen && !deleteOpen) {
       return
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const activeDialog = deleteOpen
         ? deleteDialogRef.current
-        : createDialogRef.current
+        : editOpen
+          ? editDialogRef.current
+          : createDialogRef.current
       const initialTarget = deleteOpen
         ? deleteHeadingRef.current
-        : createHeadingRef.current
+        : editOpen
+          ? editHeadingRef.current
+          : createHeadingRef.current
       const finalTarget = deleteOpen
         ? deleteCancelRef.current
-        : createCancelRef.current
+        : editOpen
+          ? editCancelRef.current
+          : createCancelRef.current
 
       if (containDialogFocus(event, activeDialog, initialTarget, finalTarget)) {
         return
@@ -301,6 +322,10 @@ export function AdminWeatherPage() {
         setDeleteOpen(false)
         setDeleteError(null)
         window.setTimeout(() => deleteButtonRef.current?.focus(), 0)
+      } else if (editOpen) {
+        setEditOpen(false)
+        setEditError(null)
+        window.setTimeout(() => editButtonRef.current?.focus(), 0)
       } else {
         setCreateOpen(false)
         setCreateError(null)
@@ -309,7 +334,7 @@ export function AdminWeatherPage() {
     }
     document.addEventListener('keydown', handleKeyDown, true)
     return () => document.removeEventListener('keydown', handleKeyDown, true)
-  }, [createOpen, deleteOpen])
+  }, [createOpen, deleteOpen, editOpen])
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -394,6 +419,8 @@ export function AdminWeatherPage() {
     setIsDetailLoading(false)
     setDeleteOpen(false)
     setDeleteError(null)
+    setEditOpen(false)
+    setEditError(null)
   }
 
   function openCreate() {
@@ -462,6 +489,97 @@ export function AdminWeatherPage() {
                 ? 'The weather record could not be validated. Check the entered values.'
                 : 'The weather record could not be added. Please try again.',
         )
+      }
+    } finally {
+      mutationInProgress.current = false
+      if (mounted.current && mutationSequence.current === mutationId) {
+        setIsMutating(false)
+      }
+    }
+  }
+
+  function openEdit() {
+    if (!detail) {
+      return
+    }
+    setEditFields({
+      weatherDate: detail.weatherDate,
+      cityName: detail.cityName,
+      temperature: String(detail.temperature),
+      mainStatus: detail.mainStatus,
+    })
+    setEditErrors({})
+    setEditError(null)
+    setSuccessMessage(null)
+    setEditOpen(true)
+  }
+
+  function closeEdit() {
+    if (mutationInProgress.current) {
+      return
+    }
+    setEditOpen(false)
+    setEditError(null)
+    window.setTimeout(() => editButtonRef.current?.focus(), 0)
+  }
+
+  async function submitEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (mutationInProgress.current || !detail) {
+      return
+    }
+    const errors = validateCreate(editFields)
+    setEditErrors(errors)
+    setEditError(null)
+    if (Object.keys(errors).length > 0) {
+      return
+    }
+
+    mutationInProgress.current = true
+    const mutationId = ++mutationSequence.current
+    const editedId = detail.weatherId
+    listSequence.current += 1
+    setIsMutating(true)
+    try {
+      const updated = await updateAdminWeather(apiClient, editedId, {
+        weatherDate: editFields.weatherDate,
+        cityName: normalizeText(editFields.cityName),
+        temperature: Number(editFields.temperature),
+        mainStatus: normalizeText(editFields.mainStatus),
+      })
+      if (!mounted.current || mutationSequence.current !== mutationId) {
+        return
+      }
+      setEditOpen(false)
+      setDetail(updated)
+      setSuccessMessage(
+        `${updated.cityName} weather record for ${formatDate(updated.weatherDate)} was updated.`,
+      )
+      setRefreshVersion((current) => current + 1)
+      window.setTimeout(() => editButtonRef.current?.focus(), 0)
+    } catch (error: unknown) {
+      if (
+        mounted.current &&
+        mutationSequence.current === mutationId &&
+        !handleUnauthorized(error)
+      ) {
+        if (error instanceof ApiError && error.status === 404) {
+          setEditOpen(false)
+          setDetail(null)
+          focusAddAfterListInstall.current = true
+          setSuccessMessage('That weather record no longer exists. The list was refreshed.')
+          setRefreshVersion((current) => current + 1)
+        } else {
+          setEditError(
+            error instanceof ApiError && error.status === 409
+              ? 'A weather record already exists for that city and date.'
+              : error instanceof ApiError && error.status === 403
+                ? 'You are not authorized to update weather records.'
+                : error instanceof ApiError && error.status === 400
+                  ? 'The weather record could not be validated. Check the entered values.'
+                  : 'The weather record could not be updated. Please try again.',
+          )
+        }
       }
     } finally {
       mutationInProgress.current = false
@@ -558,8 +676,14 @@ export function AdminWeatherPage() {
     setCreateError(null)
   }
 
+  function updateEditField(field: keyof CreateFields, value: string) {
+    setEditFields((current) => ({ ...current, [field]: value }))
+    setEditErrors((current) => ({ ...current, [field]: undefined }))
+    setEditError(null)
+  }
+
   const filtersApplied = Boolean(appliedCity || appliedDate)
-  const modalOpen = createOpen || deleteOpen
+  const modalOpen = createOpen || editOpen || deleteOpen
 
   return (
     <div className="weather-dashboard admin-weather-page" aria-busy={isMutating}>
@@ -570,7 +694,7 @@ export function AdminWeatherPage() {
           <div>
             <p className="eyebrow">Administration</p>
             <h1>Weather management</h1>
-            <p>Review, add, and remove authoritative weather records.</p>
+            <p>Review, add, update, and remove authoritative weather records.</p>
           </div>
           <button ref={addButtonRef} type="button" onClick={openCreate} disabled={isMutating}>
             Add weather record
@@ -699,6 +823,7 @@ export function AdminWeatherPage() {
                   <div><dt>Updated</dt><dd>{formatTimestamp(detail.updatedAt)}</dd></div>
                 </dl>
                 <div className="admin-status-actions">
+                  <button ref={editButtonRef} type="button" onClick={openEdit} disabled={isMutating}>Edit weather record</button>
                   <button ref={deleteButtonRef} className="danger-button" type="button" onClick={openDelete} disabled={isMutating}>Delete weather record</button>
                 </div>
               </>
@@ -722,6 +847,26 @@ export function AdminWeatherPage() {
               <div className="modal-actions">
                 <button type="submit" disabled={isMutating}>{isMutating ? 'Adding record…' : 'Add record'}</button>
                 <button ref={createCancelRef} className="secondary-button" type="button" onClick={closeCreate} disabled={isMutating}>Cancel</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      {editOpen && detail ? (
+        <div className="modal-backdrop">
+          <section ref={editDialogRef} className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="edit-weather-title" aria-describedby="edit-weather-description">
+            <h2 id="edit-weather-title" ref={editHeadingRef} tabIndex={-1}>Edit weather record</h2>
+            <p id="edit-weather-description">Update this authoritative weather observation.</p>
+            <form onSubmit={submitEdit} noValidate>
+              <CreateField id="edit-weather-date" label="Weather date" type="date" value={editFields.weatherDate} onChange={(value) => updateEditField('weatherDate', value)} error={editErrors.weatherDate} disabled={isMutating} />
+              <CreateField id="edit-city-name" label="City name" value={editFields.cityName} onChange={(value) => updateEditField('cityName', value)} maxLength={101} error={editErrors.cityName} disabled={isMutating} />
+              <CreateField id="edit-temperature" label="Temperature (°C)" type="number" value={editFields.temperature} onChange={(value) => updateEditField('temperature', value)} error={editErrors.temperature} disabled={isMutating} />
+              <CreateField id="edit-main-status" label="Main status" value={editFields.mainStatus} onChange={(value) => updateEditField('mainStatus', value)} maxLength={51} error={editErrors.mainStatus} disabled={isMutating} />
+              {editError ? <p className="error-message" role="alert">{editError}</p> : null}
+              <div className="modal-actions">
+                <button type="submit" disabled={isMutating}>{isMutating ? 'Updating record…' : 'Update record'}</button>
+                <button ref={editCancelRef} className="secondary-button" type="button" onClick={closeEdit} disabled={isMutating}>Cancel</button>
               </div>
             </form>
           </section>

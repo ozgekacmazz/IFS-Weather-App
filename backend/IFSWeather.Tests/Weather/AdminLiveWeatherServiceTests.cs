@@ -197,6 +197,8 @@ public sealed class AdminLiveWeatherServiceTests
             throw new NotSupportedException();
         public Task<bool> ExistsForCityAndDateAsync(string cityName, DateOnly weatherDate, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+        public Task<bool> ExistsForCityAndDateExceptAsync(string cityName, DateOnly weatherDate, int excludedWeatherId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
         public Task AddAsync(WeatherInfo weatherInfo, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
         public void Remove(WeatherInfo weatherInfo) => throw new NotSupportedException();

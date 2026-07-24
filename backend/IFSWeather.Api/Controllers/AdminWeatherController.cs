@@ -106,6 +106,26 @@ public sealed class AdminWeatherController : ControllerBase
             response);
     }
 
+    [HttpPut("{weatherId:int}")]
+    [ProducesResponseType<WeatherResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<WeatherResponse>> UpdateWeather(
+        int weatherId,
+        [FromBody] UpdateWeatherRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _weatherManagementService.UpdateWeatherAsync(
+            weatherId,
+            request,
+            cancellationToken);
+
+        return Ok(response);
+    }
+
     [HttpDelete("{weatherId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

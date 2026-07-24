@@ -17,16 +17,22 @@ public sealed class WeatherManagementService : IWeatherManagementService
 
     private readonly IWeatherRepository _weatherRepository;
     private readonly IValidator<CreateWeatherRequest> _createValidator;
+    private readonly IValidator<UpdateWeatherRequest> _updateValidator;
     private readonly IValidator<WeatherQuery> _queryValidator;
+    private readonly TimeProvider _timeProvider;
 
     public WeatherManagementService(
         IWeatherRepository weatherRepository,
         IValidator<CreateWeatherRequest> createValidator,
-        IValidator<WeatherQuery> queryValidator)
+        IValidator<UpdateWeatherRequest> updateValidator,
+        IValidator<WeatherQuery> queryValidator,
+        TimeProvider timeProvider)
     {
         _weatherRepository = weatherRepository;
         _createValidator = createValidator;
+        _updateValidator = updateValidator;
         _queryValidator = queryValidator;
+        _timeProvider = timeProvider;
     }
 
     public async Task<PaginatedResponse<WeatherResponse>> GetWeatherAsync(
@@ -92,7 +98,7 @@ public sealed class WeatherManagementService : IWeatherManagementService
             throw new WeatherConflictException();
         }
 
-        var utcNow = DateTime.UtcNow;
+        var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
         var weatherInfo = new WeatherInfo
         {
             WeatherDate = normalizedRequest.WeatherDate,
@@ -104,6 +110,46 @@ public sealed class WeatherManagementService : IWeatherManagementService
         };
 
         await _weatherRepository.AddAsync(weatherInfo, cancellationToken);
+        await _weatherRepository.SaveChangesAsync(cancellationToken);
+
+        return MapResponse(weatherInfo);
+    }
+
+    public async Task<WeatherResponse> UpdateWeatherAsync(
+        int weatherId,
+        UpdateWeatherRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedRequest = request with
+        {
+            CityName = NormalizeRequiredText(request.CityName),
+            MainStatus = NormalizeRequiredText(request.MainStatus)
+        };
+
+        await _updateValidator.ValidateAndThrowAsync(
+            normalizedRequest,
+            cancellationToken);
+
+        var weatherInfo = await _weatherRepository.GetTrackedByIdAsync(
+                weatherId,
+                cancellationToken)
+            ?? throw new WeatherNotFoundException();
+
+        if (await _weatherRepository.ExistsForCityAndDateExceptAsync(
+                normalizedRequest.CityName,
+                normalizedRequest.WeatherDate,
+                weatherId,
+                cancellationToken))
+        {
+            throw new WeatherConflictException();
+        }
+
+        weatherInfo.WeatherDate = normalizedRequest.WeatherDate;
+        weatherInfo.CityName = normalizedRequest.CityName;
+        weatherInfo.Temperature = normalizedRequest.Temperature;
+        weatherInfo.MainStatus = normalizedRequest.MainStatus;
+        weatherInfo.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
+
         await _weatherRepository.SaveChangesAsync(cancellationToken);
 
         return MapResponse(weatherInfo);

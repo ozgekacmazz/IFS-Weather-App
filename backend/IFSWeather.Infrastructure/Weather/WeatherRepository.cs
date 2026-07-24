@@ -132,6 +132,26 @@ public sealed class WeatherRepository : IWeatherRepository
                 cancellationToken);
     }
 
+    public Task<bool> ExistsForCityAndDateExceptAsync(
+        string cityName,
+        DateOnly weatherDate,
+        int excludedWeatherId,
+        CancellationToken cancellationToken = default)
+    {
+        var pattern = EscapeLikePattern(cityName);
+
+        return _dbContext.WeatherInfos
+            .AsNoTracking()
+            .AnyAsync(
+                weather => weather.Id != excludedWeatherId
+                    && weather.WeatherDate == weatherDate
+                    && EF.Functions.ILike(
+                        weather.CityName,
+                        pattern,
+                        LikeEscapeCharacter),
+                cancellationToken);
+    }
+
     public async Task AddAsync(
         WeatherInfo weatherInfo,
         CancellationToken cancellationToken = default)
