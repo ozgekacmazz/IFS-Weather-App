@@ -457,6 +457,43 @@ export function UserWeatherDashboardPage() {
               ) : null}
             </section>
 
+            {currentWeather && currentWeather.recommendations.length > 0 ? (
+              <section
+                className="recommendations-section motion-reveal"
+                aria-labelledby="recommendations-title"
+              >
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">Practical guidance</p>
+                    <h2 id="recommendations-title">Weather recommendations</h2>
+                  </div>
+                  <span>Based on today&apos;s saved conditions</span>
+                </div>
+                <div className="recommendations-grid">
+                  {currentWeather.recommendations.map((recommendation) => (
+                    <article
+                      className={`recommendation-card recommendation-${recommendation.priority.toLowerCase()}`}
+                      key={`${recommendation.category}-${recommendation.title}`}
+                    >
+                      <div className="recommendation-card-heading">
+                        <span className="recommendation-icon" aria-hidden="true">
+                          {recommendation.iconKey.slice(0, 1).toUpperCase()}
+                        </span>
+                        <div>
+                          <p>{recommendation.category}</p>
+                          <h3>{recommendation.title}</h3>
+                        </div>
+                      </div>
+                      <p>{recommendation.message}</p>
+                      <span className="recommendation-priority">
+                        {recommendation.priority}
+                      </span>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
             <section className="forecast-section motion-reveal" aria-labelledby="forecast-title">
               <div className="section-heading">
                 <div>

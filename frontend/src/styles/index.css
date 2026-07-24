@@ -437,6 +437,10 @@ button:focus-visible {
   animation-delay: 460ms;
 }
 
+.recommendations-section.motion-reveal {
+  animation-delay: 390ms;
+}
+
 @keyframes weather-fade-up {
   from {
     opacity: 0;
@@ -451,6 +455,7 @@ button:focus-visible {
 
 .dashboard-state,
 .current-weather-section,
+.recommendations-section,
 .forecast-section {
   margin-top: 1.5rem;
   padding: clamp(1.4rem, 3vw, 2.2rem);
@@ -564,6 +569,95 @@ button:focus-visible {
   margin: 0.7rem 0 0;
   color: #d5edef;
   font-size: 0.88rem;
+}
+
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.recommendation-card {
+  position: relative;
+  min-height: 190px;
+  padding: 1.2rem;
+  overflow: hidden;
+  border: 1px solid #d8e6e8;
+  border-top: 4px solid #5d8f94;
+  border-radius: 14px;
+  background: #f8fbfb;
+  box-shadow: 0 10px 28px rgb(16 42 67 / 7%);
+}
+
+.recommendation-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.recommendation-icon {
+  display: grid;
+  width: 2.7rem;
+  aspect-ratio: 1;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #dceced;
+  color: #0b5960;
+  font-weight: 800;
+}
+
+.recommendation-card-heading p {
+  margin: 0 0 0.15rem;
+  color: #607184;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.recommendation-card h3 {
+  margin: 0;
+  color: #16324a;
+  font: 700 1.05rem 'Manrope', sans-serif;
+}
+
+.recommendation-card > p {
+  margin: 1rem 0 2.2rem;
+  color: #52697b;
+  line-height: 1.55;
+}
+
+.recommendation-priority {
+  position: absolute;
+  right: 1.2rem;
+  bottom: 1.1rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  background: #e4eff0;
+  color: #35566d;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.recommendation-warning {
+  border-top-color: #c17a18;
+  background: #fffaf2;
+}
+
+.recommendation-warning .recommendation-priority {
+  background: #f7e5c5;
+  color: #7a4b09;
+}
+
+.recommendation-important {
+  border-top-color: #b33b47;
+  background: #fff7f7;
+}
+
+.recommendation-important .recommendation-priority {
+  background: #f4dadd;
+  color: #8c2530;
 }
 
 .weather-skeleton {

@@ -20,6 +20,7 @@ public sealed class UserWeatherService : IUserWeatherService
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IWeatherRepository _weatherRepository;
+    private readonly IWeatherRecommendationService _weatherRecommendationService;
     private readonly IValidator<CurrentWeatherQuery> _currentWeatherValidator;
     private readonly TimeProvider _timeProvider;
 
@@ -27,12 +28,14 @@ public sealed class UserWeatherService : IUserWeatherService
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         IWeatherRepository weatherRepository,
+        IWeatherRecommendationService weatherRecommendationService,
         IValidator<CurrentWeatherQuery> currentWeatherValidator,
         TimeProvider timeProvider)
     {
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _weatherRepository = weatherRepository;
+        _weatherRecommendationService = weatherRecommendationService;
         _currentWeatherValidator = currentWeatherValidator;
         _timeProvider = timeProvider;
     }
@@ -59,7 +62,7 @@ public sealed class UserWeatherService : IUserWeatherService
                 cancellationToken)
             ?? throw new WeatherNotFoundException();
 
-        return MapResponse(weatherInfo);
+        return MapTodayResponse(weatherInfo);
     }
 
     public async Task<WeatherForecastResponse> GetForecastAsync(
@@ -77,7 +80,7 @@ public sealed class UserWeatherService : IUserWeatherService
             startDate,
             endDate,
             cancellationToken);
-        var items = weatherInfos.Select(MapResponse).ToArray();
+        var items = weatherInfos.Select(MapForecastResponse).ToArray();
 
         return new WeatherForecastResponse(
             city,
@@ -108,7 +111,28 @@ public sealed class UserWeatherService : IUserWeatherService
         return defaultCity ?? throw new DefaultCityUnavailableException();
     }
 
-    private static CurrentWeatherResponse MapResponse(WeatherInfo weatherInfo)
+    private CurrentWeatherResponse MapTodayResponse(WeatherInfo weatherInfo)
+    {
+        var recommendations = _weatherRecommendationService.GetRecommendations(
+            new WeatherRecommendationContext(
+                weatherInfo.Temperature,
+                weatherInfo.MainStatus,
+                weatherInfo.WeatherDate));
+
+        return MapResponse(weatherInfo, recommendations);
+    }
+
+    private static CurrentWeatherResponse MapForecastResponse(
+        WeatherInfo weatherInfo)
+    {
+        return MapResponse(
+            weatherInfo,
+            Array.Empty<WeatherRecommendationResponse>());
+    }
+
+    private static CurrentWeatherResponse MapResponse(
+        WeatherInfo weatherInfo,
+        IReadOnlyList<WeatherRecommendationResponse> recommendations)
     {
         return new CurrentWeatherResponse(
             weatherInfo.Id,
@@ -116,7 +140,8 @@ public sealed class UserWeatherService : IUserWeatherService
             weatherInfo.CityName,
             weatherInfo.Temperature,
             weatherInfo.MainStatus,
-            weatherInfo.UpdatedAt);
+            weatherInfo.UpdatedAt,
+            recommendations);
     }
 
     private static string? NormalizeOptionalCity(string? city)

@@ -10,6 +10,7 @@ function weather(updatedAt: string) {
     temperature: 24.5,
     mainStatus: 'Clear',
     updatedAt,
+    recommendations: [],
   }
 }
 

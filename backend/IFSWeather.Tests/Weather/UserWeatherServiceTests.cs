@@ -32,6 +32,9 @@ public sealed class UserWeatherServiceTests
         Assert.Equal(currentDate, fixture.WeatherRepository.RequestedDate);
         Assert.Equal(2, response.WeatherId);
         Assert.Equal(currentDate, response.WeatherDate);
+        var recommendation = Assert.Single(response.Recommendations);
+        Assert.Equal("Activity", recommendation.Category);
+        Assert.Equal("Good conditions for outdoor activity", recommendation.Title);
     }
 
     [Theory]
@@ -87,12 +90,14 @@ public sealed class UserWeatherServiceTests
                 Assert.Equal(4, item.WeatherId);
                 Assert.Equal(monday.AddDays(1), item.WeatherDate);
                 Assert.Equal(20m, item.Temperature);
+                Assert.Empty(item.Recommendations);
             },
             item =>
             {
                 Assert.Equal(2, item.WeatherId);
                 Assert.Equal(monday.AddDays(4), item.WeatherDate);
                 Assert.Equal(24m, item.Temperature);
+                Assert.Empty(item.Recommendations);
             });
     }
 
@@ -130,6 +135,7 @@ public sealed class UserWeatherServiceTests
             currentUserService,
             userRepository,
             weatherRepository,
+            new WeatherRecommendationService(),
             new CurrentWeatherQueryValidator(),
             timeProvider);
 

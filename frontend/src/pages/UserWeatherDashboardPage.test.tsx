@@ -29,7 +29,7 @@ function profile(defaultCity: string | null = 'Istanbul') {
   }
 }
 
-function current(city = 'Istanbul') {
+function current(city = 'Istanbul', recommendations: unknown[] = []) {
   return {
     weatherId: 10,
     weatherDate: '2026-07-23',
@@ -37,6 +37,7 @@ function current(city = 'Istanbul') {
     temperature: 24.5,
     mainStatus: 'Partly cloudy',
     updatedAt: '2026-07-23T08:00:00Z',
+    recommendations,
   }
 }
 
@@ -133,6 +134,52 @@ describe('UserWeatherDashboardPage', () => {
     })
   })
 
+  it('renders Today recommendations with category, content, and priority', async () => {
+    await enterDashboard((input, init) => {
+      if (input.toString().endsWith('/api/weather/today')) {
+        return jsonResponse(current('Istanbul', [
+          {
+            category: 'Health',
+            title: 'Prioritize hydration',
+            message: 'Drink water regularly and take breaks in a cool place.',
+            priority: 'Important',
+            iconKey: 'hydration',
+          },
+          {
+            category: 'Agriculture',
+            title: 'Avoid midday watering',
+            message: 'Water plants early or late in the day.',
+            priority: 'Warning',
+            iconKey: 'plant',
+          },
+        ]))
+      }
+
+      return successfulDashboardFetch(input, init)
+    })
+
+    expect(
+      await screen.findByRole('heading', { name: 'Weather recommendations' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Health')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Prioritize hydration' }))
+      .toBeInTheDocument()
+    expect(screen.getByText(/drink water regularly/i)).toBeInTheDocument()
+    expect(screen.getByText('Important')).toBeInTheDocument()
+    expect(screen.getByText('Agriculture')).toBeInTheDocument()
+    expect(screen.getByText('Warning')).toBeInTheDocument()
+  })
+
+  it('does not render a recommendations section for an empty collection', async () => {
+    await enterDashboard(successfulDashboardFetch)
+
+    expect(await screen.findByRole('heading', { name: 'Istanbul' }))
+      .toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Weather recommendations' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('shows an intentional loading state while profile data is pending', async () => {
     let resolveProfile: ((response: Response) => void) | undefined
     const implementation = (input: RequestInfo | URL) => {
@@ -184,6 +231,9 @@ describe('UserWeatherDashboardPage', () => {
     expect(
       screen.getByRole('status', { name: 'Loading weekly forecast' }),
     ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Weather recommendations' }),
+    ).not.toBeInTheDocument()
 
     resolveCurrent?.(new Response(JSON.stringify(current()), { status: 200 }))
     resolveForecast?.(new Response(JSON.stringify(forecast()), { status: 200 }))
@@ -229,6 +279,31 @@ describe('UserWeatherDashboardPage', () => {
     expect(screen.getByText('Current weather unavailable').closest('[role="alert"]'))
       .toBeInTheDocument()
     expect(screen.queryByText('not-a-number')).not.toBeInTheDocument()
+  })
+
+  it('rejects a malformed recommendation response safely', async () => {
+    await enterDashboard((input, init) => {
+      if (input.toString().endsWith('/api/weather/today')) {
+        return jsonResponse(current('Istanbul', [
+          {
+            category: 'Unknown',
+            title: 'Unsafe recommendation',
+            message: 'This should not render.',
+            priority: 'Critical',
+            iconKey: '',
+          },
+        ]))
+      }
+
+      return successfulDashboardFetch(input, init)
+    })
+
+    expect(
+      await screen.findByText(/weather information is temporarily unavailable/i),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Current weather unavailable').closest('[role="alert"]'))
+      .toBeInTheDocument()
+    expect(screen.queryByText('Unsafe recommendation')).not.toBeInTheDocument()
   })
 
   it('rejects a blank city without sending an update request', async () => {

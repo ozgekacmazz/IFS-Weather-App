@@ -1,6 +1,24 @@
 import type { ApiClient } from './apiClient'
 import { isDateOnly, isExplicitTimestamp } from './dateValidation'
 
+export type WeatherRecommendationCategory =
+  | 'Clothing'
+  | 'Activity'
+  | 'Health'
+  | 'Agriculture'
+  | 'Safety'
+  | 'General'
+
+export type WeatherRecommendationPriority = 'Info' | 'Warning' | 'Important'
+
+export interface WeatherRecommendation {
+  category: WeatherRecommendationCategory
+  title: string
+  message: string
+  priority: WeatherRecommendationPriority
+  iconKey: string
+}
+
 export interface CurrentWeather {
   weatherId: number
   weatherDate: string
@@ -8,6 +26,7 @@ export interface CurrentWeather {
   temperature: number
   mainStatus: string
   updatedAt: string
+  recommendations: WeatherRecommendation[]
 }
 
 export interface WeatherForecast {
@@ -19,6 +38,52 @@ export interface WeatherForecast {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+const recommendationCategories = new Set<WeatherRecommendationCategory>([
+  'Clothing',
+  'Activity',
+  'Health',
+  'Agriculture',
+  'Safety',
+  'General',
+])
+
+const recommendationPriorities = new Set<WeatherRecommendationPriority>([
+  'Info',
+  'Warning',
+  'Important',
+])
+
+function decodeRecommendation(value: unknown): WeatherRecommendation {
+  if (!isRecord(value)) {
+    throw new TypeError('Invalid weather recommendation response')
+  }
+
+  const { category, title, message, priority, iconKey } = value
+
+  if (
+    typeof category !== 'string' ||
+    !recommendationCategories.has(category as WeatherRecommendationCategory) ||
+    typeof title !== 'string' ||
+    title.trim().length === 0 ||
+    typeof message !== 'string' ||
+    message.trim().length === 0 ||
+    typeof priority !== 'string' ||
+    !recommendationPriorities.has(priority as WeatherRecommendationPriority) ||
+    typeof iconKey !== 'string' ||
+    iconKey.trim().length === 0
+  ) {
+    throw new TypeError('Invalid weather recommendation response')
+  }
+
+  return {
+    category: category as WeatherRecommendationCategory,
+    title,
+    message,
+    priority: priority as WeatherRecommendationPriority,
+    iconKey,
+  }
 }
 
 export function decodeCurrentWeather(value: unknown): CurrentWeather {
@@ -33,6 +98,7 @@ export function decodeCurrentWeather(value: unknown): CurrentWeather {
     temperature,
     mainStatus,
     updatedAt,
+    recommendations,
   } = value
 
   if (
@@ -46,7 +112,8 @@ export function decodeCurrentWeather(value: unknown): CurrentWeather {
     !Number.isFinite(temperature) ||
     typeof mainStatus !== 'string' ||
     mainStatus.trim().length === 0 ||
-    !isExplicitTimestamp(updatedAt)
+    !isExplicitTimestamp(updatedAt) ||
+    !Array.isArray(recommendations)
   ) {
     throw new TypeError('Invalid current weather response')
   }
@@ -58,6 +125,7 @@ export function decodeCurrentWeather(value: unknown): CurrentWeather {
     temperature,
     mainStatus,
     updatedAt,
+    recommendations: recommendations.map(decodeRecommendation),
   }
 }
 

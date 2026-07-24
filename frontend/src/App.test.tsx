@@ -68,6 +68,7 @@ function dashboardResponse(url: string) {
       temperature: 24,
       mainStatus: 'Clear',
       updatedAt: '2026-07-23T08:00:00Z',
+      recommendations: [],
     }
   }
 

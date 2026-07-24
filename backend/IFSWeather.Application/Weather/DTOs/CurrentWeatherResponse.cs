@@ -6,4 +6,5 @@ public sealed record CurrentWeatherResponse(
     string CityName,
     decimal Temperature,
     string MainStatus,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    IReadOnlyList<WeatherRecommendationResponse> Recommendations);
