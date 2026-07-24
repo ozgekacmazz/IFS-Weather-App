@@ -62,6 +62,11 @@ public sealed class AdminLiveWeatherService : IAdminLiveWeatherService
             normalized.DisplayLabel,
             current.Date,
             current.AverageTemperature,
+            current.MinimumTemperature,
+            current.MaximumTemperature,
+            current.AverageHumidity,
+            current.MaximumWindSpeedKph,
+            current.PrecipitationProbability,
             current.MainStatus);
     }
 
@@ -84,6 +89,11 @@ public sealed class AdminLiveWeatherService : IAdminLiveWeatherService
                 WeatherDate = normalized.WeatherDate,
                 CityName = normalized.CityName,
                 Temperature = normalized.Temperature,
+                MinimumTemperature = normalized.MinimumTemperature,
+                MaximumTemperature = normalized.MaximumTemperature,
+                AverageHumidity = normalized.AverageHumidity,
+                MaximumWindSpeedKph = normalized.MaximumWindSpeedKph,
+                PrecipitationProbability = normalized.PrecipitationProbability,
                 MainStatus = normalized.MainStatus,
                 CreatedAt = now,
                 UpdatedAt = now
@@ -97,6 +107,11 @@ public sealed class AdminLiveWeatherService : IAdminLiveWeatherService
                 weather.WeatherDate,
                 weather.CityName,
                 weather.Temperature,
+                weather.MinimumTemperature,
+                weather.MaximumTemperature,
+                weather.AverageHumidity,
+                weather.MaximumWindSpeedKph,
+                weather.PrecipitationProbability,
                 weather.MainStatus,
                 weather.CreatedAt,
                 weather.UpdatedAt));

@@ -213,6 +213,9 @@ public sealed class WeatherApiProviderTests
                       "mintemp_c": 20.1,
                       "maxtemp_c": 29.4,
                       "avgtemp_c": 24.7,
+                      "avghumidity": 64,
+                      "maxwind_kph": 22.5,
+                      "daily_chance_of_rain": 70,
                       "condition": {
                         "text": "Partly cloudy",
                         "icon": "//cdn.weatherapi.com/icon.png"
@@ -246,6 +249,9 @@ public sealed class WeatherApiProviderTests
         Assert.Equal(20.1m, day.MinimumTemperature);
         Assert.Equal(29.4m, day.MaximumTemperature);
         Assert.Equal(24.7m, day.AverageTemperature);
+        Assert.Equal(64m, day.AverageHumidity);
+        Assert.Equal(22.5m, day.MaximumWindSpeedKph);
+        Assert.Equal(70m, day.PrecipitationProbability);
         Assert.Equal("Partly cloudy", day.MainStatus);
         Assert.Equal("https://cdn.weatherapi.com/icon.png", day.IconUrl);
     }
@@ -370,6 +376,9 @@ public sealed class WeatherApiProviderTests
                       "mintemp_c": 20.1,
                       "maxtemp_c": 31.4,
                       "avgtemp_c": 25.7,
+                      "avghumidity": 58,
+                      "maxwind_kph": 19.4,
+                      "daily_chance_of_rain": 5,
                       "condition": {
                         "text": "Sunny",
                         "icon": "//cdn.weatherapi.com/icon.png"

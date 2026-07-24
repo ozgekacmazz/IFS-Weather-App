@@ -6,6 +6,11 @@ export interface AdminWeatherRecord {
   weatherDate: string
   cityName: string
   temperature: number
+  minimumTemperature: number | null
+  maximumTemperature: number | null
+  averageHumidity: number | null
+  maximumWindSpeedKph: number | null
+  precipitationProbability: number | null
   mainStatus: string
   createdAt: string
   updatedAt: string
@@ -30,6 +35,11 @@ export interface CreateAdminWeatherRequest {
   weatherDate: string
   cityName: string
   temperature: number
+  minimumTemperature: number | null
+  maximumTemperature: number | null
+  averageHumidity: number | null
+  maximumWindSpeedKph: number | null
+  precipitationProbability: number | null
   mainStatus: string
 }
 
@@ -42,6 +52,11 @@ export interface AdminWeatherPreview {
   displayLabel: string
   weatherDate: string
   temperature: number
+  minimumTemperature: number
+  maximumTemperature: number
+  averageHumidity: number
+  maximumWindSpeedKph: number
+  precipitationProbability: number
   mainStatus: string
 }
 
@@ -66,6 +81,50 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+function isNullableFiniteNumber(value: unknown): value is number | null {
+  return value === null ||
+    (typeof value === 'number' && Number.isFinite(value))
+}
+
+function hasValidDailyMetrics(value: {
+  temperature: number
+  minimumTemperature: number | null
+  maximumTemperature: number | null
+  averageHumidity: number | null
+  maximumWindSpeedKph: number | null
+  precipitationProbability: number | null
+}) {
+  const {
+    temperature,
+    minimumTemperature,
+    maximumTemperature,
+    averageHumidity,
+    maximumWindSpeedKph,
+    precipitationProbability,
+  } = value
+
+  return (
+    isNullableFiniteNumber(minimumTemperature) &&
+    isNullableFiniteNumber(maximumTemperature) &&
+    (minimumTemperature === null) === (maximumTemperature === null) &&
+    (minimumTemperature === null ||
+      minimumTemperature >= -90 &&
+      maximumTemperature! <= 60 &&
+      minimumTemperature <= maximumTemperature! &&
+      temperature >= minimumTemperature &&
+      temperature <= maximumTemperature!) &&
+    isNullableFiniteNumber(averageHumidity) &&
+    (averageHumidity === null ||
+      averageHumidity >= 0 && averageHumidity <= 100) &&
+    isNullableFiniteNumber(maximumWindSpeedKph) &&
+    (maximumWindSpeedKph === null ||
+      maximumWindSpeedKph >= 0 && maximumWindSpeedKph <= 500) &&
+    isNullableFiniteNumber(precipitationProbability) &&
+    (precipitationProbability === null ||
+      precipitationProbability >= 0 && precipitationProbability <= 100)
+  )
+}
+
 export function decodeAdminWeather(value: unknown): AdminWeatherRecord {
   if (!isRecord(value)) {
     throw new TypeError('Invalid admin weather response')
@@ -76,6 +135,11 @@ export function decodeAdminWeather(value: unknown): AdminWeatherRecord {
     weatherDate,
     cityName,
     temperature,
+    minimumTemperature,
+    maximumTemperature,
+    averageHumidity,
+    maximumWindSpeedKph,
+    precipitationProbability,
     mainStatus,
     createdAt,
     updatedAt,
@@ -87,6 +151,14 @@ export function decodeAdminWeather(value: unknown): AdminWeatherRecord {
     !isNonEmptyString(cityName) ||
     typeof temperature !== 'number' ||
     !Number.isFinite(temperature) ||
+    !hasValidDailyMetrics({
+      temperature,
+      minimumTemperature: minimumTemperature as number | null,
+      maximumTemperature: maximumTemperature as number | null,
+      averageHumidity: averageHumidity as number | null,
+      maximumWindSpeedKph: maximumWindSpeedKph as number | null,
+      precipitationProbability: precipitationProbability as number | null,
+    }) ||
     !isNonEmptyString(mainStatus) ||
     !isExplicitTimestamp(createdAt) ||
     !isExplicitTimestamp(updatedAt)
@@ -99,6 +171,11 @@ export function decodeAdminWeather(value: unknown): AdminWeatherRecord {
     weatherDate,
     cityName,
     temperature,
+    minimumTemperature: minimumTemperature as number | null,
+    maximumTemperature: maximumTemperature as number | null,
+    averageHumidity: averageHumidity as number | null,
+    maximumWindSpeedKph: maximumWindSpeedKph as number | null,
+    precipitationProbability: precipitationProbability as number | null,
     mainStatus,
     createdAt,
     updatedAt,
@@ -143,6 +220,11 @@ function decodePreview(value: unknown): AdminWeatherPreview {
     displayLabel,
     weatherDate,
     temperature,
+    minimumTemperature,
+    maximumTemperature,
+    averageHumidity,
+    maximumWindSpeedKph,
+    precipitationProbability,
     mainStatus,
   } = value
   if (
@@ -155,6 +237,25 @@ function decodePreview(value: unknown): AdminWeatherPreview {
     !isDateOnly(weatherDate) ||
     typeof temperature !== 'number' ||
     !Number.isFinite(temperature) ||
+    typeof minimumTemperature !== 'number' ||
+    !Number.isFinite(minimumTemperature) ||
+    typeof maximumTemperature !== 'number' ||
+    !Number.isFinite(maximumTemperature) ||
+    minimumTemperature > maximumTemperature ||
+    temperature < minimumTemperature ||
+    temperature > maximumTemperature ||
+    typeof averageHumidity !== 'number' ||
+    !Number.isFinite(averageHumidity) ||
+    averageHumidity < 0 ||
+    averageHumidity > 100 ||
+    typeof maximumWindSpeedKph !== 'number' ||
+    !Number.isFinite(maximumWindSpeedKph) ||
+    maximumWindSpeedKph < 0 ||
+    maximumWindSpeedKph > 500 ||
+    typeof precipitationProbability !== 'number' ||
+    !Number.isFinite(precipitationProbability) ||
+    precipitationProbability < 0 ||
+    precipitationProbability > 100 ||
     !isNonEmptyString(mainStatus)
   ) {
     throw new TypeError('Invalid admin weather preview')
@@ -166,6 +267,11 @@ function decodePreview(value: unknown): AdminWeatherPreview {
     displayLabel,
     weatherDate,
     temperature,
+    minimumTemperature,
+    maximumTemperature,
+    averageHumidity,
+    maximumWindSpeedKph,
+    precipitationProbability,
     mainStatus,
   }
 }

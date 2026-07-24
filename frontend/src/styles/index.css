@@ -571,6 +571,32 @@ button:focus-visible {
   font-size: 0.88rem;
 }
 
+.daily-weather-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin: 1.2rem 0 0;
+}
+
+.daily-weather-metrics div {
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 9%);
+}
+
+.daily-weather-metrics dt {
+  color: #bde0e2;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.daily-weather-metrics dd {
+  margin: 0.2rem 0 0;
+  color: #fff;
+  font-weight: 700;
+}
+
 .recommendations-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1753,6 +1779,10 @@ button:focus-visible {
   .inline-state button:not(:disabled):active,
   .admin-modal {
     transform: none !important;
+  }
+
+  .daily-weather-metrics {
+    grid-template-columns: 1fr;
   }
 
   .motion-reveal,

@@ -212,8 +212,15 @@ export function AdminLiveWeatherPanel({
         <div className="weather-detail-grid motion-reveal">
           <h3>{preview.displayLabel}</h3>
           <p>{preview.weatherDate}</p>
-          <p>{preview.temperature} °C</p>
-          <p>{preview.mainStatus}</p>
+          <dl className="admin-detail-grid">
+            <div><dt>Daily average</dt><dd>{preview.temperature} °C</dd></div>
+            <div><dt>Minimum</dt><dd>{preview.minimumTemperature} °C</dd></div>
+            <div><dt>Maximum</dt><dd>{preview.maximumTemperature} °C</dd></div>
+            <div><dt>Average humidity</dt><dd>{preview.averageHumidity}%</dd></div>
+            <div><dt>Maximum wind</dt><dd>{preview.maximumWindSpeedKph} km/h</dd></div>
+            <div><dt>Rain probability</dt><dd>{preview.precipitationProbability}%</dd></div>
+            <div><dt>Condition</dt><dd>{preview.mainStatus}</dd></div>
+          </dl>
           <button
             type="button"
             onClick={() => void savePreview()}

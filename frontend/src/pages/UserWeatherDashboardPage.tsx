@@ -428,6 +428,47 @@ export function UserWeatherDashboardPage() {
                         {formatTimestamp(currentWeather.updatedAt)}
                       </time>
                     </p>
+                    {currentWeather.minimumTemperature !== null ||
+                    currentWeather.maximumTemperature !== null ||
+                    currentWeather.averageHumidity !== null ||
+                    currentWeather.maximumWindSpeedKph !== null ||
+                    currentWeather.precipitationProbability !== null ? (
+                      <dl className="daily-weather-metrics">
+                        {currentWeather.minimumTemperature !== null &&
+                        currentWeather.maximumTemperature !== null ? (
+                          <div>
+                            <dt>Daily range</dt>
+                            <dd>
+                              {formatTemperature(currentWeather.minimumTemperature)}°C
+                              {' / '}
+                              {formatTemperature(currentWeather.maximumTemperature)}°C
+                            </dd>
+                          </div>
+                        ) : null}
+                        {currentWeather.averageHumidity !== null ? (
+                          <div>
+                            <dt>Average humidity</dt>
+                            <dd>{formatTemperature(currentWeather.averageHumidity)}%</dd>
+                          </div>
+                        ) : null}
+                        {currentWeather.maximumWindSpeedKph !== null ? (
+                          <div>
+                            <dt>Maximum wind</dt>
+                            <dd>
+                              {formatTemperature(currentWeather.maximumWindSpeedKph)} km/h
+                            </dd>
+                          </div>
+                        ) : null}
+                        {currentWeather.precipitationProbability !== null ? (
+                          <div>
+                            <dt>Rain probability</dt>
+                            <dd>
+                              {formatTemperature(currentWeather.precipitationProbability)}%
+                            </dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                    ) : null}
                   </div>
                 </article>
               ) : currentMissing ? (

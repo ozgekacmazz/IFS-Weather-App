@@ -35,6 +35,11 @@ function current(city = 'Istanbul', recommendations: unknown[] = []) {
     weatherDate: '2026-07-23',
     cityName: city,
     temperature: 24.5,
+    minimumTemperature: null,
+    maximumTemperature: null,
+    averageHumidity: null,
+    maximumWindSpeedKph: null,
+    precipitationProbability: null,
     mainStatus: 'Partly cloudy',
     updatedAt: '2026-07-23T08:00:00Z',
     recommendations,
@@ -178,6 +183,30 @@ describe('UserWeatherDashboardPage', () => {
     expect(
       screen.queryByRole('heading', { name: 'Weather recommendations' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('renders enriched Today metrics including numeric zero', async () => {
+    await enterDashboard((input, init) => {
+      if (input.toString().endsWith('/api/weather/today')) {
+        return jsonResponse({
+          ...current(),
+          minimumTemperature: 18,
+          maximumTemperature: 29,
+          averageHumidity: 0,
+          maximumWindSpeedKph: 22.5,
+          precipitationProbability: 0,
+        })
+      }
+
+      return successfulDashboardFetch(input, init)
+    })
+
+    expect(await screen.findByText('Daily range')).toBeInTheDocument()
+    expect(screen.getByText(/18.*29/)).toBeInTheDocument()
+    expect(screen.getByText('Average humidity')).toBeInTheDocument()
+    expect(screen.getAllByText('0%')).toHaveLength(2)
+    expect(screen.getByText('Maximum wind')).toBeInTheDocument()
+    expect(screen.getByText(/22[.,]5 km\/h/)).toBeInTheDocument()
   })
 
   it('shows an intentional loading state while profile data is pending', async () => {

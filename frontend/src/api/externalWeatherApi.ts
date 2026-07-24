@@ -6,6 +6,9 @@ export interface ExternalWeatherDay {
   minimumTemperature: number
   maximumTemperature: number
   averageTemperature: number
+  averageHumidity: number
+  maximumWindSpeedKph: number
+  precipitationProbability: number
   mainStatus: string
   iconUrl: string | null
 }
@@ -45,6 +48,9 @@ function decodeDay(value: unknown): ExternalWeatherDay {
     minimumTemperature,
     maximumTemperature,
     averageTemperature,
+    averageHumidity,
+    maximumWindSpeedKph,
+    precipitationProbability,
     mainStatus,
     iconUrl,
   } = value
@@ -59,6 +65,18 @@ function decodeDay(value: unknown): ExternalWeatherDay {
     !Number.isFinite(averageTemperature) ||
     minimumTemperature > averageTemperature ||
     averageTemperature > maximumTemperature ||
+    typeof averageHumidity !== 'number' ||
+    !Number.isFinite(averageHumidity) ||
+    averageHumidity < 0 ||
+    averageHumidity > 100 ||
+    typeof maximumWindSpeedKph !== 'number' ||
+    !Number.isFinite(maximumWindSpeedKph) ||
+    maximumWindSpeedKph < 0 ||
+    maximumWindSpeedKph > 500 ||
+    typeof precipitationProbability !== 'number' ||
+    !Number.isFinite(precipitationProbability) ||
+    precipitationProbability < 0 ||
+    precipitationProbability > 100 ||
     !isNonEmptyString(mainStatus) ||
     (iconUrl !== null &&
       (typeof iconUrl !== 'string' || iconUrl.trim().length === 0))
@@ -71,6 +89,9 @@ function decodeDay(value: unknown): ExternalWeatherDay {
     minimumTemperature,
     maximumTemperature,
     averageTemperature,
+    averageHumidity,
+    maximumWindSpeedKph,
+    precipitationProbability,
     mainStatus,
     iconUrl,
   }

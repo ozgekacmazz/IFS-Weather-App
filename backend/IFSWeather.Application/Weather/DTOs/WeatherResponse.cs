@@ -5,6 +5,11 @@ public sealed record WeatherResponse(
     DateOnly WeatherDate,
     string CityName,
     decimal Temperature,
+    decimal? MinimumTemperature,
+    decimal? MaximumTemperature,
+    decimal? AverageHumidity,
+    decimal? MaximumWindSpeedKph,
+    decimal? PrecipitationProbability,
     string MainStatus,
     DateTime CreatedAt,
     DateTime UpdatedAt);

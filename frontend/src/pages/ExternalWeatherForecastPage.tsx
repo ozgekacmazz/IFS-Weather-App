@@ -772,6 +772,18 @@ export function ExternalWeatherForecastPage() {
                         <dt>Maximum</dt>
                         <dd>{formatTemperature(day.maximumTemperature)}</dd>
                       </div>
+                      <div>
+                        <dt>Average humidity</dt>
+                        <dd>{day.averageHumidity}%</dd>
+                      </div>
+                      <div>
+                        <dt>Maximum wind</dt>
+                        <dd>{day.maximumWindSpeedKph} km/h</dd>
+                      </div>
+                      <div>
+                        <dt>Rain probability</dt>
+                        <dd>{day.precipitationProbability}%</dd>
+                      </div>
                     </dl>
                   </article>
                 </li>

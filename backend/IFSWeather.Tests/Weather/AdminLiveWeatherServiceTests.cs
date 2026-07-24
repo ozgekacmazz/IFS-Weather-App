@@ -36,6 +36,11 @@ public sealed class AdminLiveWeatherServiceTests
         Assert.Equal(27.142826m, fixture.External.Query.Longitude);
         Assert.Equal(1, fixture.External.Query.Days);
         Assert.Equal(0, fixture.Repository.UpsertCount);
+        Assert.Equal(20m, result.MinimumTemperature);
+        Assert.Equal(32m, result.MaximumTemperature);
+        Assert.Equal(64m, result.AverageHumidity);
+        Assert.Equal(22m, result.MaximumWindSpeedKph);
+        Assert.Equal(35m, result.PrecipitationProbability);
     }
 
     [Theory]
@@ -73,6 +78,11 @@ public sealed class AdminLiveWeatherServiceTests
             37.91441m,
             40.23063m,
             31.25m,
+            24m,
+            36m,
+            62m,
+            28m,
+            20m,
             " Sunny "),
             TestContext.Current.CancellationToken);
 
@@ -80,6 +90,11 @@ public sealed class AdminLiveWeatherServiceTests
         Assert.Equal(1, fixture.Repository.UpsertCount);
         Assert.Equal("Diyarbakir", fixture.Repository.Upserted!.CityName);
         Assert.Equal("Sunny", fixture.Repository.Upserted.MainStatus);
+        Assert.Equal(24m, fixture.Repository.Upserted.MinimumTemperature);
+        Assert.Equal(36m, fixture.Repository.Upserted.MaximumTemperature);
+        Assert.Equal(62m, fixture.Repository.Upserted.AverageHumidity);
+        Assert.Equal(28m, fixture.Repository.Upserted.MaximumWindSpeedKph);
+        Assert.Equal(20m, fixture.Repository.Upserted.PrecipitationProbability);
         Assert.Equal(TestNow, fixture.Repository.Upserted.UpdatedAt);
     }
 
@@ -96,6 +111,11 @@ public sealed class AdminLiveWeatherServiceTests
                 0,
                 0,
                 100,
+                70,
+                60,
+                101,
+                -1,
+                101,
                 ""),
                 TestContext.Current.CancellationToken));
 
@@ -150,6 +170,9 @@ public sealed class AdminLiveWeatherServiceTests
                     20,
                     32,
                     26,
+                    64,
+                    22,
+                    35,
                     "Sunny",
                     null)
             ]);

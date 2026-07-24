@@ -24,6 +24,11 @@ export interface CurrentWeather {
   weatherDate: string
   cityName: string
   temperature: number
+  minimumTemperature: number | null
+  maximumTemperature: number | null
+  averageHumidity: number | null
+  maximumWindSpeedKph: number | null
+  precipitationProbability: number | null
   mainStatus: string
   updatedAt: string
   recommendations: WeatherRecommendation[]
@@ -38,6 +43,11 @@ export interface WeatherForecast {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isNullableFiniteNumber(value: unknown): value is number | null {
+  return value === null ||
+    (typeof value === 'number' && Number.isFinite(value))
 }
 
 const recommendationCategories = new Set<WeatherRecommendationCategory>([
@@ -96,6 +106,11 @@ export function decodeCurrentWeather(value: unknown): CurrentWeather {
     weatherDate,
     cityName,
     temperature,
+    minimumTemperature,
+    maximumTemperature,
+    averageHumidity,
+    maximumWindSpeedKph,
+    precipitationProbability,
     mainStatus,
     updatedAt,
     recommendations,
@@ -110,6 +125,24 @@ export function decodeCurrentWeather(value: unknown): CurrentWeather {
     cityName.trim().length === 0 ||
     typeof temperature !== 'number' ||
     !Number.isFinite(temperature) ||
+    !isNullableFiniteNumber(minimumTemperature) ||
+    !isNullableFiniteNumber(maximumTemperature) ||
+    (minimumTemperature === null) !== (maximumTemperature === null) ||
+    (minimumTemperature !== null &&
+      (minimumTemperature < -90 ||
+        maximumTemperature! > 60 ||
+        minimumTemperature > maximumTemperature! ||
+        temperature < minimumTemperature ||
+        temperature > maximumTemperature!)) ||
+    !isNullableFiniteNumber(averageHumidity) ||
+    (averageHumidity !== null &&
+      (averageHumidity < 0 || averageHumidity > 100)) ||
+    !isNullableFiniteNumber(maximumWindSpeedKph) ||
+    (maximumWindSpeedKph !== null &&
+      (maximumWindSpeedKph < 0 || maximumWindSpeedKph > 500)) ||
+    !isNullableFiniteNumber(precipitationProbability) ||
+    (precipitationProbability !== null &&
+      (precipitationProbability < 0 || precipitationProbability > 100)) ||
     typeof mainStatus !== 'string' ||
     mainStatus.trim().length === 0 ||
     !isExplicitTimestamp(updatedAt) ||
@@ -123,6 +156,11 @@ export function decodeCurrentWeather(value: unknown): CurrentWeather {
     weatherDate,
     cityName,
     temperature,
+    minimumTemperature,
+    maximumTemperature,
+    averageHumidity,
+    maximumWindSpeedKph,
+    precipitationProbability,
     mainStatus,
     updatedAt,
     recommendations: recommendations.map(decodeRecommendation),

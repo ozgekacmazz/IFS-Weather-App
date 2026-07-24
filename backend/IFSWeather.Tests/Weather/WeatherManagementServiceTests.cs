@@ -18,6 +18,87 @@ public sealed class WeatherManagementServiceTests
         2026, 7, 25, 9, 30, 0, DateTimeKind.Utc);
 
     [Fact]
+    public async Task Create_WithDailyMetrics_PersistsAndReturnsEveryValue()
+    {
+        var repository = new WeatherRepositoryStub();
+        var service = CreateService(repository);
+
+        var result = await service.CreateWeatherAsync(
+            ValidCreateRequest(),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(repository.Added);
+        Assert.Equal(20m, result.MinimumTemperature);
+        Assert.Equal(30m, result.MaximumTemperature);
+        Assert.Equal(64m, result.AverageHumidity);
+        Assert.Equal(22m, result.MaximumWindSpeedKph);
+        Assert.Equal(70m, result.PrecipitationProbability);
+        Assert.Equal(1, repository.SaveCount);
+    }
+
+    [Fact]
+    public async Task Create_WithoutDailyMetrics_PreservesLegacyNulls()
+    {
+        var repository = new WeatherRepositoryStub();
+        var service = CreateService(repository);
+        var request = ValidCreateRequest() with
+        {
+            MinimumTemperature = null,
+            MaximumTemperature = null,
+            AverageHumidity = null,
+            MaximumWindSpeedKph = null,
+            PrecipitationProbability = null
+        };
+
+        var result = await service.CreateWeatherAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        Assert.Null(result.MinimumTemperature);
+        Assert.Null(result.MaximumTemperature);
+        Assert.Null(result.AverageHumidity);
+        Assert.Null(result.MaximumWindSpeedKph);
+        Assert.Null(result.PrecipitationProbability);
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidDailyMetricRequests))]
+    public async Task Create_RejectsInvalidDailyMetrics(CreateWeatherRequest request)
+    {
+        var repository = new WeatherRepositoryStub();
+        var service = CreateService(repository);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            service.CreateWeatherAsync(
+                request,
+                TestContext.Current.CancellationToken));
+
+        Assert.Null(repository.Added);
+        Assert.Equal(0, repository.SaveCount);
+    }
+
+    [Fact]
+    public async Task Create_AcceptsNumericZeroForDailyMetrics()
+    {
+        var repository = new WeatherRepositoryStub();
+        var service = CreateService(repository);
+        var request = ValidCreateRequest() with
+        {
+            AverageHumidity = 0m,
+            MaximumWindSpeedKph = 0m,
+            PrecipitationProbability = 0m
+        };
+
+        var result = await service.CreateWeatherAsync(
+            request,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0m, result.AverageHumidity);
+        Assert.Equal(0m, result.MaximumWindSpeedKph);
+        Assert.Equal(0m, result.PrecipitationProbability);
+    }
+
+    [Fact]
     public async Task Update_NormalizesFieldsAndPreservesCreatedAt()
     {
         var repository = new WeatherRepositoryStub
@@ -32,11 +113,21 @@ public sealed class WeatherManagementServiceTests
                 new DateOnly(2026, 7, 25),
                 "  İzmir   City  ",
                 27.25m,
+                20m,
+                30m,
+                64m,
+                22m,
+                70m,
                 "  Partly   cloudy  "),
             TestContext.Current.CancellationToken);
 
         Assert.Equal("İzmir City", result.CityName);
         Assert.Equal("Partly cloudy", result.MainStatus);
+        Assert.Equal(20m, result.MinimumTemperature);
+        Assert.Equal(30m, result.MaximumTemperature);
+        Assert.Equal(64m, result.AverageHumidity);
+        Assert.Equal(22m, result.MaximumWindSpeedKph);
+        Assert.Equal(70m, result.PrecipitationProbability);
         Assert.Equal(CreatedAt, result.CreatedAt);
         Assert.Equal(UpdatedAt, result.UpdatedAt);
         Assert.Equal(CreatedAt, repository.Tracked!.CreatedAt);
@@ -114,7 +205,37 @@ public sealed class WeatherManagementServiceTests
             new DateOnly(2026, 7, 25),
             "İzmir",
             27.25m,
+            20m,
+            30m,
+            64m,
+            22m,
+            70m,
             "Clear");
+
+    private static CreateWeatherRequest ValidCreateRequest() =>
+        new(
+            new DateOnly(2026, 7, 25),
+            "Izmir",
+            27.25m,
+            20m,
+            30m,
+            64m,
+            22m,
+            70m,
+            "Clear");
+
+    public static TheoryData<CreateWeatherRequest> InvalidDailyMetricRequests =>
+        new()
+        {
+            ValidCreateRequest() with { MinimumTemperature = 31m },
+            ValidCreateRequest() with { MaximumTemperature = 19m },
+            ValidCreateRequest() with { Temperature = 31m },
+            ValidCreateRequest() with { AverageHumidity = -1m },
+            ValidCreateRequest() with { AverageHumidity = 101m },
+            ValidCreateRequest() with { MaximumWindSpeedKph = -1m },
+            ValidCreateRequest() with { PrecipitationProbability = -1m },
+            ValidCreateRequest() with { PrecipitationProbability = 101m }
+        };
 
     private static WeatherInfo ExistingWeather() =>
         new()
@@ -140,6 +261,7 @@ public sealed class WeatherManagementServiceTests
         public int TrackedReadCount { get; private set; }
         public int SaveCount { get; private set; }
         public int? ExcludedWeatherId { get; private set; }
+        public WeatherInfo? Added { get; private set; }
 
         public Task<WeatherInfo?> GetTrackedByIdAsync(
             int weatherId,
@@ -178,9 +300,12 @@ public sealed class WeatherManagementServiceTests
         public Task<IReadOnlyList<WeatherInfo>> GetByCityAndDateRangeAsync(string cityName, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
         public Task<bool> ExistsForCityAndDateAsync(string cityName, DateOnly weatherDate, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
-        public Task AddAsync(WeatherInfo weatherInfo, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
+            Task.FromResult(false);
+        public Task AddAsync(WeatherInfo weatherInfo, CancellationToken cancellationToken = default)
+        {
+            Added = weatherInfo;
+            return Task.CompletedTask;
+        }
         public Task<(WeatherInfo Weather, bool Inserted)> UpsertAsync(WeatherInfo weatherInfo, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
         public void Remove(WeatherInfo weatherInfo) =>

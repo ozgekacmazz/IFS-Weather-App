@@ -32,9 +32,40 @@ public sealed class UserWeatherServiceTests
         Assert.Equal(currentDate, fixture.WeatherRepository.RequestedDate);
         Assert.Equal(2, response.WeatherId);
         Assert.Equal(currentDate, response.WeatherDate);
+        Assert.Null(response.MinimumTemperature);
+        Assert.Null(response.MaximumTemperature);
+        Assert.Null(response.AverageHumidity);
+        Assert.Null(response.MaximumWindSpeedKph);
+        Assert.Null(response.PrecipitationProbability);
         var recommendation = Assert.Single(response.Recommendations);
         Assert.Equal("Activity", recommendation.Category);
         Assert.Equal("Good conditions for outdoor activity", recommendation.Title);
+    }
+
+    [Fact]
+    public async Task GetCurrentWeatherAsync_ReturnsSavedDailyMetrics()
+    {
+        var currentDate = new DateOnly(2026, 7, 24);
+        var weather = CreateWeatherInfo(2, currentDate, "Istanbul", 22m);
+        weather.MinimumTemperature = 16m;
+        weather.MaximumTemperature = 28m;
+        weather.AverageHumidity = 64m;
+        weather.MaximumWindSpeedKph = 22m;
+        weather.PrecipitationProbability = 70m;
+        var fixture = CreateFixture(currentDate, weatherInfos: [weather]);
+
+        var response = await fixture.Service.GetCurrentWeatherAsync(
+            new CurrentWeatherQuery(),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(16m, response.MinimumTemperature);
+        Assert.Equal(28m, response.MaximumTemperature);
+        Assert.Equal(64m, response.AverageHumidity);
+        Assert.Equal(22m, response.MaximumWindSpeedKph);
+        Assert.Equal(70m, response.PrecipitationProbability);
+        Assert.Equal(
+            "Good conditions for outdoor activity",
+            Assert.Single(response.Recommendations).Title);
     }
 
     [Theory]

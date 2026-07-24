@@ -225,6 +225,9 @@ public sealed class ExternalWeatherServiceTests
                     20m,
                     30m,
                     25m,
+                    60m,
+                    20m,
+                    10m,
                     "Sunny",
                     null)
             ]);

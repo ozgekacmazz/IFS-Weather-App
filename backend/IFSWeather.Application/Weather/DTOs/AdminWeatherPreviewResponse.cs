@@ -7,4 +7,9 @@ public sealed record AdminWeatherPreviewResponse(
     string DisplayLabel,
     DateOnly WeatherDate,
     decimal Temperature,
+    decimal MinimumTemperature,
+    decimal MaximumTemperature,
+    decimal AverageHumidity,
+    decimal MaximumWindSpeedKph,
+    decimal PrecipitationProbability,
     string MainStatus);

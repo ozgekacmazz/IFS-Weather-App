@@ -6,6 +6,7 @@ using IFSWeather.Infrastructure.Persistence.Configurations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace IFSWeather.Infrastructure.Weather;
 
@@ -168,23 +169,55 @@ public sealed class WeatherRepository : IWeatherRepository
         var connection = (NpgsqlConnection)_dbContext.Database.GetDbConnection();
         await using var command = new NpgsqlCommand("""
             INSERT INTO "Weather_Info_Tab"
-                ("WeatherDate", "CityName", "Temperature", "MainStatus",
+                ("WeatherDate", "CityName", "Temperature",
+                 "MinimumTemperature", "MaximumTemperature", "AverageHumidity",
+                 "MaximumWindSpeedKph", "PrecipitationProbability", "MainStatus",
                  "CreatedAt", "UpdatedAt")
             VALUES
-                (@weatherDate, @cityName, @temperature, @mainStatus,
+                (@weatherDate, @cityName, @temperature,
+                 @minimumTemperature, @maximumTemperature, @averageHumidity,
+                 @maximumWindSpeedKph, @precipitationProbability, @mainStatus,
                  @createdAt, @updatedAt)
             ON CONFLICT ("WeatherDate", "NormalizedCityName")
             DO UPDATE SET
                 "CityName" = EXCLUDED."CityName",
                 "Temperature" = EXCLUDED."Temperature",
+                "MinimumTemperature" = EXCLUDED."MinimumTemperature",
+                "MaximumTemperature" = EXCLUDED."MaximumTemperature",
+                "AverageHumidity" = EXCLUDED."AverageHumidity",
+                "MaximumWindSpeedKph" = EXCLUDED."MaximumWindSpeedKph",
+                "PrecipitationProbability" = EXCLUDED."PrecipitationProbability",
                 "MainStatus" = EXCLUDED."MainStatus",
                 "UpdatedAt" = EXCLUDED."UpdatedAt"
             RETURNING "Id", "WeatherDate", "CityName", "Temperature",
-                      "MainStatus", "CreatedAt", "UpdatedAt", (xmax = 0)
+                      "MinimumTemperature", "MaximumTemperature",
+                      "AverageHumidity", "MaximumWindSpeedKph",
+                      "PrecipitationProbability", "MainStatus",
+                      "CreatedAt", "UpdatedAt", (xmax = 0)
             """, connection, (NpgsqlTransaction)transaction.GetDbTransaction());
         command.Parameters.AddWithValue("weatherDate", weatherInfo.WeatherDate);
         command.Parameters.AddWithValue("cityName", weatherInfo.CityName);
         command.Parameters.AddWithValue("temperature", weatherInfo.Temperature);
+        command.Parameters.AddWithValue(
+            "minimumTemperature",
+            NpgsqlDbType.Numeric,
+            (object?)weatherInfo.MinimumTemperature ?? DBNull.Value);
+        command.Parameters.AddWithValue(
+            "maximumTemperature",
+            NpgsqlDbType.Numeric,
+            (object?)weatherInfo.MaximumTemperature ?? DBNull.Value);
+        command.Parameters.AddWithValue(
+            "averageHumidity",
+            NpgsqlDbType.Numeric,
+            (object?)weatherInfo.AverageHumidity ?? DBNull.Value);
+        command.Parameters.AddWithValue(
+            "maximumWindSpeedKph",
+            NpgsqlDbType.Numeric,
+            (object?)weatherInfo.MaximumWindSpeedKph ?? DBNull.Value);
+        command.Parameters.AddWithValue(
+            "precipitationProbability",
+            NpgsqlDbType.Numeric,
+            (object?)weatherInfo.PrecipitationProbability ?? DBNull.Value);
         command.Parameters.AddWithValue("mainStatus", weatherInfo.MainStatus);
         command.Parameters.AddWithValue("createdAt", weatherInfo.CreatedAt);
         command.Parameters.AddWithValue("updatedAt", weatherInfo.UpdatedAt);
@@ -201,11 +234,17 @@ public sealed class WeatherRepository : IWeatherRepository
             WeatherDate = reader.GetFieldValue<DateOnly>(1),
             CityName = reader.GetString(2),
             Temperature = reader.GetDecimal(3),
-            MainStatus = reader.GetString(4),
-            CreatedAt = reader.GetDateTime(5),
-            UpdatedAt = reader.GetDateTime(6)
+            MinimumTemperature = reader.IsDBNull(4) ? null : reader.GetDecimal(4),
+            MaximumTemperature = reader.IsDBNull(5) ? null : reader.GetDecimal(5),
+            AverageHumidity = reader.IsDBNull(6) ? null : reader.GetDecimal(6),
+            MaximumWindSpeedKph = reader.IsDBNull(7) ? null : reader.GetDecimal(7),
+            PrecipitationProbability =
+                reader.IsDBNull(8) ? null : reader.GetDecimal(8),
+            MainStatus = reader.GetString(9),
+            CreatedAt = reader.GetDateTime(10),
+            UpdatedAt = reader.GetDateTime(11)
         };
-        var inserted = reader.GetBoolean(7);
+        var inserted = reader.GetBoolean(12);
         await reader.CloseAsync();
         await transaction.CommitAsync(cancellationToken);
         return (saved, inserted);

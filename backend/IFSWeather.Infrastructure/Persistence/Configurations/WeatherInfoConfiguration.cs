@@ -28,6 +28,21 @@ public sealed class WeatherInfoConfiguration : IEntityTypeConfiguration<WeatherI
             .HasPrecision(5, 2)
             .IsRequired();
 
+        builder.Property(weather => weather.MinimumTemperature)
+            .HasPrecision(5, 2);
+
+        builder.Property(weather => weather.MaximumTemperature)
+            .HasPrecision(5, 2);
+
+        builder.Property(weather => weather.AverageHumidity)
+            .HasPrecision(5, 2);
+
+        builder.Property(weather => weather.MaximumWindSpeedKph)
+            .HasPrecision(6, 2);
+
+        builder.Property(weather => weather.PrecipitationProbability)
+            .HasPrecision(5, 2);
+
         builder.Property(weather => weather.MainStatus)
             .HasMaxLength(50)
             .IsRequired();

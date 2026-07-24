@@ -139,6 +139,11 @@ public sealed class UserWeatherService : IUserWeatherService
             weatherInfo.WeatherDate,
             weatherInfo.CityName,
             weatherInfo.Temperature,
+            weatherInfo.MinimumTemperature,
+            weatherInfo.MaximumTemperature,
+            weatherInfo.AverageHumidity,
+            weatherInfo.MaximumWindSpeedKph,
+            weatherInfo.PrecipitationProbability,
             weatherInfo.MainStatus,
             weatherInfo.UpdatedAt,
             recommendations);

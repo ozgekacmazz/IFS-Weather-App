@@ -31,6 +31,11 @@ interface CreateFields {
   weatherDate: string
   cityName: string
   temperature: string
+  minimumTemperature: string
+  maximumTemperature: string
+  averageHumidity: string
+  maximumWindSpeedKph: string
+  precipitationProbability: string
   mainStatus: string
 }
 
@@ -40,11 +45,20 @@ const emptyCreateFields: CreateFields = {
   weatherDate: '',
   cityName: '',
   temperature: '',
+  minimumTemperature: '',
+  maximumTemperature: '',
+  averageHumidity: '',
+  maximumWindSpeedKph: '',
+  precipitationProbability: '',
   mainStatus: '',
 }
 
 function normalizeText(value: string) {
   return value.trim().replace(/\s+/g, ' ')
+}
+
+function optionalNumber(value: string) {
+  return value.trim() === '' ? null : Number(value)
 }
 
 function formatDate(value: string) {
@@ -133,6 +147,80 @@ function validateCreate(fields: CreateFields): CreateErrors {
     if (!Number.isFinite(temperature) || temperature < -90 || temperature > 60) {
       errors.temperature = 'Temperature must be between -90 and 60.'
     }
+  }
+
+  const minimumTemperature = optionalNumber(fields.minimumTemperature)
+  const maximumTemperature = optionalNumber(fields.maximumTemperature)
+  const temperature = Number(fields.temperature)
+
+  if ((minimumTemperature === null) !== (maximumTemperature === null)) {
+    const message = 'Minimum and maximum temperature must be supplied together.'
+    errors.minimumTemperature = message
+    errors.maximumTemperature = message
+  } else if (minimumTemperature !== null && maximumTemperature !== null) {
+    if (
+      !Number.isFinite(minimumTemperature) ||
+      minimumTemperature < -90 ||
+      minimumTemperature > 60
+    ) {
+      errors.minimumTemperature =
+        'Minimum temperature must be between -90 and 60.'
+    }
+    if (
+      !Number.isFinite(maximumTemperature) ||
+      maximumTemperature < -90 ||
+      maximumTemperature > 60
+    ) {
+      errors.maximumTemperature =
+        'Maximum temperature must be between -90 and 60.'
+    }
+    if (
+      Number.isFinite(minimumTemperature) &&
+      Number.isFinite(maximumTemperature) &&
+      minimumTemperature > maximumTemperature
+    ) {
+      errors.maximumTemperature =
+        'Maximum temperature must be greater than or equal to minimum temperature.'
+    } else if (
+      Number.isFinite(temperature) &&
+      (temperature < minimumTemperature || temperature > maximumTemperature)
+    ) {
+      errors.temperature =
+        'Temperature must be between minimum and maximum temperature.'
+    }
+  }
+
+  const averageHumidity = optionalNumber(fields.averageHumidity)
+  if (
+    averageHumidity !== null &&
+    (!Number.isFinite(averageHumidity) ||
+      averageHumidity < 0 ||
+      averageHumidity > 100)
+  ) {
+    errors.averageHumidity = 'Average humidity must be between 0 and 100.'
+  }
+
+  const maximumWindSpeedKph = optionalNumber(fields.maximumWindSpeedKph)
+  if (
+    maximumWindSpeedKph !== null &&
+    (!Number.isFinite(maximumWindSpeedKph) ||
+      maximumWindSpeedKph < 0 ||
+      maximumWindSpeedKph > 500)
+  ) {
+    errors.maximumWindSpeedKph =
+      'Maximum wind speed must be between 0 and 500.'
+  }
+
+  const precipitationProbability =
+    optionalNumber(fields.precipitationProbability)
+  if (
+    precipitationProbability !== null &&
+    (!Number.isFinite(precipitationProbability) ||
+      precipitationProbability < 0 ||
+      precipitationProbability > 100)
+  ) {
+    errors.precipitationProbability =
+      'Rain probability must be between 0 and 100.'
   }
 
   if (status.length < 2 || status.length > 50) {
@@ -461,6 +549,12 @@ export function AdminWeatherPage() {
         weatherDate: createFields.weatherDate,
         cityName: normalizeText(createFields.cityName),
         temperature: Number(createFields.temperature),
+        minimumTemperature: optionalNumber(createFields.minimumTemperature),
+        maximumTemperature: optionalNumber(createFields.maximumTemperature),
+        averageHumidity: optionalNumber(createFields.averageHumidity),
+        maximumWindSpeedKph: optionalNumber(createFields.maximumWindSpeedKph),
+        precipitationProbability:
+          optionalNumber(createFields.precipitationProbability),
         mainStatus: normalizeText(createFields.mainStatus),
       })
       if (!mounted.current || mutationSequence.current !== mutationId) {
@@ -506,6 +600,12 @@ export function AdminWeatherPage() {
       weatherDate: detail.weatherDate,
       cityName: detail.cityName,
       temperature: String(detail.temperature),
+      minimumTemperature: detail.minimumTemperature?.toString() ?? '',
+      maximumTemperature: detail.maximumTemperature?.toString() ?? '',
+      averageHumidity: detail.averageHumidity?.toString() ?? '',
+      maximumWindSpeedKph: detail.maximumWindSpeedKph?.toString() ?? '',
+      precipitationProbability:
+        detail.precipitationProbability?.toString() ?? '',
       mainStatus: detail.mainStatus,
     })
     setEditErrors({})
@@ -545,6 +645,12 @@ export function AdminWeatherPage() {
         weatherDate: editFields.weatherDate,
         cityName: normalizeText(editFields.cityName),
         temperature: Number(editFields.temperature),
+        minimumTemperature: optionalNumber(editFields.minimumTemperature),
+        maximumTemperature: optionalNumber(editFields.maximumTemperature),
+        averageHumidity: optionalNumber(editFields.averageHumidity),
+        maximumWindSpeedKph: optionalNumber(editFields.maximumWindSpeedKph),
+        precipitationProbability:
+          optionalNumber(editFields.precipitationProbability),
         mainStatus: normalizeText(editFields.mainStatus),
       })
       if (!mounted.current || mutationSequence.current !== mutationId) {
@@ -819,6 +925,11 @@ export function AdminWeatherPage() {
                   <div><dt>City</dt><dd>{detail.cityName}</dd></div>
                   <div><dt>Weather date</dt><dd>{formatDate(detail.weatherDate)}</dd></div>
                   <div><dt>Temperature</dt><dd>{formatTemperature(detail.temperature)}</dd></div>
+                  {detail.minimumTemperature !== null ? <div><dt>Minimum temperature</dt><dd>{formatTemperature(detail.minimumTemperature)}</dd></div> : null}
+                  {detail.maximumTemperature !== null ? <div><dt>Maximum temperature</dt><dd>{formatTemperature(detail.maximumTemperature)}</dd></div> : null}
+                  {detail.averageHumidity !== null ? <div><dt>Average humidity</dt><dd>{detail.averageHumidity}%</dd></div> : null}
+                  {detail.maximumWindSpeedKph !== null ? <div><dt>Maximum wind</dt><dd>{detail.maximumWindSpeedKph} km/h</dd></div> : null}
+                  {detail.precipitationProbability !== null ? <div><dt>Rain probability</dt><dd>{detail.precipitationProbability}%</dd></div> : null}
                   <div><dt>Created</dt><dd>{formatTimestamp(detail.createdAt)}</dd></div>
                   <div><dt>Updated</dt><dd>{formatTimestamp(detail.updatedAt)}</dd></div>
                 </dl>
@@ -842,6 +953,11 @@ export function AdminWeatherPage() {
               <CreateField id="create-weather-date" label="Weather date" type="date" value={createFields.weatherDate} onChange={(value) => updateCreateField('weatherDate', value)} error={createErrors.weatherDate} disabled={isMutating} />
               <CreateField id="create-city-name" label="City name" value={createFields.cityName} onChange={(value) => updateCreateField('cityName', value)} maxLength={101} error={createErrors.cityName} disabled={isMutating} />
               <CreateField id="create-temperature" label="Temperature (°C)" type="number" value={createFields.temperature} onChange={(value) => updateCreateField('temperature', value)} error={createErrors.temperature} disabled={isMutating} />
+              <CreateField id="create-minimum-temperature" label="Minimum temperature (°C, optional)" type="number" value={createFields.minimumTemperature} onChange={(value) => updateCreateField('minimumTemperature', value)} error={createErrors.minimumTemperature} disabled={isMutating} />
+              <CreateField id="create-maximum-temperature" label="Maximum temperature (°C, optional)" type="number" value={createFields.maximumTemperature} onChange={(value) => updateCreateField('maximumTemperature', value)} error={createErrors.maximumTemperature} disabled={isMutating} />
+              <CreateField id="create-average-humidity" label="Average humidity (%, optional)" type="number" value={createFields.averageHumidity} onChange={(value) => updateCreateField('averageHumidity', value)} error={createErrors.averageHumidity} disabled={isMutating} />
+              <CreateField id="create-maximum-wind" label="Maximum wind (km/h, optional)" type="number" value={createFields.maximumWindSpeedKph} onChange={(value) => updateCreateField('maximumWindSpeedKph', value)} error={createErrors.maximumWindSpeedKph} disabled={isMutating} />
+              <CreateField id="create-rain-probability" label="Rain probability (%, optional)" type="number" value={createFields.precipitationProbability} onChange={(value) => updateCreateField('precipitationProbability', value)} error={createErrors.precipitationProbability} disabled={isMutating} />
               <CreateField id="create-main-status" label="Main status" value={createFields.mainStatus} onChange={(value) => updateCreateField('mainStatus', value)} maxLength={51} error={createErrors.mainStatus} disabled={isMutating} />
               {createError ? <p className="error-message" role="alert">{createError}</p> : null}
               <div className="modal-actions">
@@ -862,6 +978,11 @@ export function AdminWeatherPage() {
               <CreateField id="edit-weather-date" label="Weather date" type="date" value={editFields.weatherDate} onChange={(value) => updateEditField('weatherDate', value)} error={editErrors.weatherDate} disabled={isMutating} />
               <CreateField id="edit-city-name" label="City name" value={editFields.cityName} onChange={(value) => updateEditField('cityName', value)} maxLength={101} error={editErrors.cityName} disabled={isMutating} />
               <CreateField id="edit-temperature" label="Temperature (°C)" type="number" value={editFields.temperature} onChange={(value) => updateEditField('temperature', value)} error={editErrors.temperature} disabled={isMutating} />
+              <CreateField id="edit-minimum-temperature" label="Minimum temperature (°C, optional)" type="number" value={editFields.minimumTemperature} onChange={(value) => updateEditField('minimumTemperature', value)} error={editErrors.minimumTemperature} disabled={isMutating} />
+              <CreateField id="edit-maximum-temperature" label="Maximum temperature (°C, optional)" type="number" value={editFields.maximumTemperature} onChange={(value) => updateEditField('maximumTemperature', value)} error={editErrors.maximumTemperature} disabled={isMutating} />
+              <CreateField id="edit-average-humidity" label="Average humidity (%, optional)" type="number" value={editFields.averageHumidity} onChange={(value) => updateEditField('averageHumidity', value)} error={editErrors.averageHumidity} disabled={isMutating} />
+              <CreateField id="edit-maximum-wind" label="Maximum wind (km/h, optional)" type="number" value={editFields.maximumWindSpeedKph} onChange={(value) => updateEditField('maximumWindSpeedKph', value)} error={editErrors.maximumWindSpeedKph} disabled={isMutating} />
+              <CreateField id="edit-rain-probability" label="Rain probability (%, optional)" type="number" value={editFields.precipitationProbability} onChange={(value) => updateEditField('precipitationProbability', value)} error={editErrors.precipitationProbability} disabled={isMutating} />
               <CreateField id="edit-main-status" label="Main status" value={editFields.mainStatus} onChange={(value) => updateEditField('mainStatus', value)} maxLength={51} error={editErrors.mainStatus} disabled={isMutating} />
               {editError ? <p className="error-message" role="alert">{editError}</p> : null}
               <div className="modal-actions">

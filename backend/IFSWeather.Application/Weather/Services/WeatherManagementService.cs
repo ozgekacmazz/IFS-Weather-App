@@ -104,6 +104,11 @@ public sealed class WeatherManagementService : IWeatherManagementService
             WeatherDate = normalizedRequest.WeatherDate,
             CityName = normalizedRequest.CityName,
             Temperature = normalizedRequest.Temperature,
+            MinimumTemperature = normalizedRequest.MinimumTemperature,
+            MaximumTemperature = normalizedRequest.MaximumTemperature,
+            AverageHumidity = normalizedRequest.AverageHumidity,
+            MaximumWindSpeedKph = normalizedRequest.MaximumWindSpeedKph,
+            PrecipitationProbability = normalizedRequest.PrecipitationProbability,
             MainStatus = normalizedRequest.MainStatus,
             CreatedAt = utcNow,
             UpdatedAt = utcNow
@@ -147,6 +152,12 @@ public sealed class WeatherManagementService : IWeatherManagementService
         weatherInfo.WeatherDate = normalizedRequest.WeatherDate;
         weatherInfo.CityName = normalizedRequest.CityName;
         weatherInfo.Temperature = normalizedRequest.Temperature;
+        weatherInfo.MinimumTemperature = normalizedRequest.MinimumTemperature;
+        weatherInfo.MaximumTemperature = normalizedRequest.MaximumTemperature;
+        weatherInfo.AverageHumidity = normalizedRequest.AverageHumidity;
+        weatherInfo.MaximumWindSpeedKph = normalizedRequest.MaximumWindSpeedKph;
+        weatherInfo.PrecipitationProbability =
+            normalizedRequest.PrecipitationProbability;
         weatherInfo.MainStatus = normalizedRequest.MainStatus;
         weatherInfo.UpdatedAt = _timeProvider.GetUtcNow().UtcDateTime;
 
@@ -175,6 +186,11 @@ public sealed class WeatherManagementService : IWeatherManagementService
             weatherInfo.WeatherDate,
             weatherInfo.CityName,
             weatherInfo.Temperature,
+            weatherInfo.MinimumTemperature,
+            weatherInfo.MaximumTemperature,
+            weatherInfo.AverageHumidity,
+            weatherInfo.MaximumWindSpeedKph,
+            weatherInfo.PrecipitationProbability,
             weatherInfo.MainStatus,
             weatherInfo.CreatedAt,
             weatherInfo.UpdatedAt);

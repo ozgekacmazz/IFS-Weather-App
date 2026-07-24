@@ -5,5 +5,8 @@ public sealed record ExternalWeatherDay(
     decimal MinimumTemperature,
     decimal MaximumTemperature,
     decimal AverageTemperature,
+    decimal AverageHumidity,
+    decimal MaximumWindSpeedKph,
+    decimal PrecipitationProbability,
     string MainStatus,
     string? IconUrl);

@@ -20,6 +20,11 @@ function weather(overrides: Record<string, unknown> = {}) {
     weatherDate: '2026-07-23',
     cityName: 'Denizli',
     temperature: 32.5,
+    minimumTemperature: null,
+    maximumTemperature: null,
+    averageHumidity: null,
+    maximumWindSpeedKph: null,
+    precipitationProbability: null,
     mainStatus: 'Clear',
     createdAt: '2026-07-23T08:00:00Z',
     updatedAt: '2026-07-23T09:00:00Z',
@@ -388,6 +393,11 @@ describe('AdminWeatherPage', () => {
       weatherDate: '2026-07-23',
       cityName: 'New City',
       temperature: 22.5,
+      minimumTemperature: null,
+      maximumTemperature: null,
+      averageHumidity: null,
+      maximumWindSpeedKph: null,
+      precipitationProbability: null,
       mainStatus: 'Partly cloudy',
     })
     resolvePost?.(new Response(JSON.stringify(weather({
@@ -457,6 +467,11 @@ describe('AdminWeatherPage', () => {
     const updated = weather({
       cityName: 'İzmir City',
       temperature: 28,
+      minimumTemperature: null,
+      maximumTemperature: null,
+      averageHumidity: null,
+      maximumWindSpeedKph: null,
+      precipitationProbability: null,
       mainStatus: 'Partly cloudy',
       updatedAt: '2026-07-25T09:30:00Z',
     })
@@ -506,6 +521,11 @@ describe('AdminWeatherPage', () => {
       weatherDate: '2026-07-23',
       cityName: 'İzmir City',
       temperature: 28,
+      minimumTemperature: null,
+      maximumTemperature: null,
+      averageHumidity: null,
+      maximumWindSpeedKph: null,
+      precipitationProbability: null,
       mainStatus: 'Partly cloudy',
     }))
     expect(fetchMock.mock.calls.filter(([, options]) => options?.method === 'PUT'))
@@ -830,6 +850,11 @@ describe('AdminWeatherPage', () => {
       displayLabel: location.displayLabel,
       weatherDate: '2026-07-24',
       temperature: 28.5,
+      minimumTemperature: 22,
+      maximumTemperature: 31,
+      averageHumidity: 64,
+      maximumWindSpeedKph: 22.5,
+      precipitationProbability: 5,
       mainStatus: 'Sunny',
     }
     const { fetchMock, user } = await enterWeather((input, init) => {
@@ -866,6 +891,11 @@ describe('AdminWeatherPage', () => {
     expect(await screen.findByRole('heading', {
       name: location.displayLabel,
     })).toBeInTheDocument()
+    expect(screen.getByText('Average humidity')).toBeInTheDocument()
+    expect(screen.getByText('64%')).toBeInTheDocument()
+    expect(screen.getByText('Maximum wind')).toBeInTheDocument()
+    expect(screen.getByText(/22[.,]5 km\/h/)).toBeInTheDocument()
+    expect(screen.getByText('Rain probability')).toBeInTheDocument()
     expect(screen.getByText('28.5 °C')).toBeInTheDocument()
     expect(fetchMock.mock.calls.filter(([input]) =>
       input.toString().endsWith('/api/admin/weather/live/save'),
@@ -954,6 +984,11 @@ describe('AdminWeatherPage', () => {
       displayLabel: location.displayLabel,
       weatherDate: '2026-07-24',
       temperature: 28.5,
+      minimumTemperature: 22,
+      maximumTemperature: 31,
+      averageHumidity: 64,
+      maximumWindSpeedKph: 22.5,
+      precipitationProbability: 5,
       mainStatus: 'Sunny',
     }
     const { user } = await enterWeather((input, init) => {

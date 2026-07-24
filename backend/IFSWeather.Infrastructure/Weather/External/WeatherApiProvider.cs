@@ -373,6 +373,14 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
             || day.MinimumTemperature is not decimal minimumTemperature
             || day.MaximumTemperature is not decimal maximumTemperature
             || day.AverageTemperature is not decimal averageTemperature
+            || day.AverageHumidity is not decimal averageHumidity
+            || day.MaximumWindSpeedKph is not decimal maximumWindSpeedKph
+            || day.PrecipitationProbability is not decimal precipitationProbability
+            || minimumTemperature > averageTemperature
+            || averageTemperature > maximumTemperature
+            || averageHumidity is < 0m or > 100m
+            || maximumWindSpeedKph is < 0m or > 500m
+            || precipitationProbability is < 0m or > 100m
             || string.IsNullOrWhiteSpace(day.Condition?.Text))
         {
             throw new ExternalWeatherUnavailableException();
@@ -383,6 +391,9 @@ public sealed class WeatherApiProvider : IExternalWeatherProvider
             minimumTemperature,
             maximumTemperature,
             averageTemperature,
+            averageHumidity,
+            maximumWindSpeedKph,
+            precipitationProbability,
             day.Condition.Text,
             NormalizeIconUrl(day.Condition.Icon));
     }

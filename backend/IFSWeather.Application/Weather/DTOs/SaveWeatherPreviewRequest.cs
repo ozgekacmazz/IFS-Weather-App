@@ -7,4 +7,9 @@ public sealed record SaveWeatherPreviewRequest(
     decimal Latitude,
     decimal Longitude,
     decimal Temperature,
+    decimal MinimumTemperature,
+    decimal MaximumTemperature,
+    decimal AverageHumidity,
+    decimal MaximumWindSpeedKph,
+    decimal PrecipitationProbability,
     string MainStatus);

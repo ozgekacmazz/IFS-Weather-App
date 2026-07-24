@@ -19,6 +19,11 @@ function weather(overrides: Record<string, unknown> = {}) {
     weatherDate: '2026-07-23',
     cityName: 'Denizli',
     temperature: 32.5,
+    minimumTemperature: null,
+    maximumTemperature: null,
+    averageHumidity: null,
+    maximumWindSpeedKph: null,
+    precipitationProbability: null,
     mainStatus: 'Clear',
     createdAt: '2026-07-23T08:00:00Z',
     updatedAt: '2026-07-23T08:00:00Z',
@@ -94,6 +99,11 @@ describe('admin weather API', () => {
       weatherDate: '2026-07-23',
       cityName: 'Denizli',
       temperature: 32.5,
+      minimumTemperature: null,
+      maximumTemperature: null,
+      averageHumidity: null,
+      maximumWindSpeedKph: null,
+      precipitationProbability: null,
       mainStatus: 'Clear',
     }
     await expect(createAdminWeather(client(), request)).resolves.toEqual(weather())
@@ -107,6 +117,11 @@ describe('admin weather API', () => {
     const updated = weather({
       cityName: 'İzmir',
       temperature: 28,
+      minimumTemperature: null,
+      maximumTemperature: null,
+      averageHumidity: null,
+      maximumWindSpeedKph: null,
+      precipitationProbability: null,
       mainStatus: 'Partly cloudy',
       updatedAt: '2026-07-25T09:30:00Z',
     })
@@ -117,6 +132,11 @@ describe('admin weather API', () => {
       weatherDate: '2026-07-23',
       cityName: 'İzmir',
       temperature: 28,
+      minimumTemperature: null,
+      maximumTemperature: null,
+      averageHumidity: null,
+      maximumWindSpeedKph: null,
+      precipitationProbability: null,
       mainStatus: 'Partly cloudy',
     }
 
@@ -146,6 +166,11 @@ describe('admin weather API', () => {
       displayLabel: 'İzmir, Türkiye',
       weatherDate: '2026-07-24',
       temperature: 28.5,
+      minimumTemperature: 22,
+      maximumTemperature: 31,
+      averageHumidity: 64,
+      maximumWindSpeedKph: 22.5,
+      precipitationProbability: 70,
       mainStatus: 'Sunny',
     }
     const fetchMock = vi.spyOn(globalThis, 'fetch')

@@ -55,6 +55,15 @@ internal sealed class WeatherApiDay
     [JsonPropertyName("avgtemp_c")]
     public decimal? AverageTemperature { get; init; }
 
+    [JsonPropertyName("avghumidity")]
+    public decimal? AverageHumidity { get; init; }
+
+    [JsonPropertyName("maxwind_kph")]
+    public decimal? MaximumWindSpeedKph { get; init; }
+
+    [JsonPropertyName("daily_chance_of_rain")]
+    public decimal? PrecipitationProbability { get; init; }
+
     public WeatherApiCondition? Condition { get; init; }
 }
 
