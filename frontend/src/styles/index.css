@@ -414,17 +414,33 @@ button:focus-visible {
 }
 
 .motion-reveal {
-  animation: weather-fade-up 280ms ease-out both;
+  animation: weather-fade-up 580ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .weather-card-reveal {
-  animation: weather-fade-up 360ms ease-out both;
+  animation: weather-fade-up 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dashboard-intro.motion-reveal {
+  animation-delay: 40ms;
+}
+
+.weather-toolbar.motion-reveal {
+  animation-delay: 160ms;
+}
+
+.current-weather-section.motion-reveal {
+  animation-delay: 300ms;
+}
+
+.forecast-section.motion-reveal {
+  animation-delay: 460ms;
 }
 
 @keyframes weather-fade-up {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(28px);
   }
 
   to {
@@ -475,17 +491,20 @@ button:focus-visible {
   min-height: 220px;
   padding: clamp(1.5rem, 4vw, 3rem);
   overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 18%);
   border-radius: 18px;
   background: linear-gradient(135deg, #0b3156, #126e75);
   color: #fff;
   transition:
-    box-shadow 180ms ease,
-    transform 180ms ease;
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease;
 }
 
 .current-weather-card:hover {
-  box-shadow: 0 22px 52px rgb(7 24 52 / 20%);
-  transform: translateY(-2px);
+  border-color: rgb(255 255 255 / 42%);
+  box-shadow: 0 32px 68px rgb(7 24 52 / 32%);
+  transform: translateY(-8px);
 }
 
 .weather-condition-icon {
@@ -501,7 +520,7 @@ button:focus-visible {
 }
 
 .weather-card-reveal .weather-condition-icon {
-  animation: weather-icon-enter 380ms 100ms ease-out both;
+  animation: weather-icon-enter 380ms 140ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes weather-icon-enter {
@@ -669,10 +688,10 @@ button:focus-visible {
   stroke: #147c82;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 5;
+  stroke-width: 6;
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  animation: chart-line-draw 480ms 120ms ease-out forwards;
+  animation: chart-line-draw 1100ms 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .chart-point {
@@ -685,7 +704,7 @@ button:focus-visible {
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
-  animation: chart-point-enter 220ms 540ms ease-out forwards;
+  animation: chart-point-enter 380ms 1320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes chart-line-draw {
@@ -697,7 +716,7 @@ button:focus-visible {
 @keyframes chart-point-enter {
   from {
     opacity: 0;
-    transform: scale(0.75);
+    transform: scale(0.55);
   }
 
   to {
@@ -735,16 +754,18 @@ button:focus-visible {
   border-radius: 12px;
   background: #f0f6f7;
   transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
+    background-color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease;
 }
 
 .forecast-list li:hover,
 .forecast-list li:focus-within {
-  border-color: #b9d5d8;
-  box-shadow: 0 10px 22px rgb(16 42 67 / 9%);
-  transform: translateY(-2px);
+  border-color: #69abb2;
+  background: #e8f3f4;
+  box-shadow: 0 20px 38px rgb(16 42 67 / 20%);
+  transform: translateY(-8px);
 }
 
 .forecast-list time,
@@ -1185,7 +1206,7 @@ button:focus-visible {
   overflow-y: auto;
   padding: 1rem;
   background: rgb(7 24 52 / 68%);
-  animation: modal-backdrop-enter 180ms ease-out both;
+  animation: modal-backdrop-enter 360ms ease-out both;
 }
 
 .admin-modal {
@@ -1194,7 +1215,7 @@ button:focus-visible {
   border-radius: 20px;
   background: #fff;
   box-shadow: 0 28px 80px rgb(7 24 52 / 30%);
-  animation: modal-content-enter 220ms ease-out both;
+  animation: modal-content-enter 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes modal-backdrop-enter {
@@ -1206,7 +1227,7 @@ button:focus-visible {
 @keyframes modal-content-enter {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(28px) scale(0.91);
   }
 
   to {
@@ -1638,5 +1659,17 @@ button:focus-visible {
   .inline-state button:not(:disabled):active,
   .admin-modal {
     transform: none !important;
+  }
+
+  .motion-reveal,
+  .weather-card-reveal,
+  .weather-card-reveal .weather-condition-icon,
+  .chart-point-group,
+  .admin-modal {
+    opacity: 1 !important;
+  }
+
+  .chart-line {
+    stroke-dashoffset: 0 !important;
   }
 }
