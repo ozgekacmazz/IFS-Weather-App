@@ -36,9 +36,10 @@ function displayLabel(location: ExternalWeatherLocation) {
 export function AdminLiveWeatherPanel({
   onSaved,
 }: AdminLiveWeatherPanelProps) {
-  const { apiClient } = useAuth()
+  const { apiClient, logout } = useAuth()
   const [query, setQuery] = useState('')
   const [locations, setLocations] = useState<ExternalWeatherLocation[]>([])
+  const [searchedQuery, setSearchedQuery] = useState<string | null>(null)
   const [selected, setSelected] = useState<ExternalWeatherLocation | null>(null)
   const [preview, setPreview] = useState<AdminWeatherPreview | null>(null)
   const [isSearching, setIsSearching] = useState(false)
@@ -64,6 +65,7 @@ export function AdminLiveWeatherPanel({
         .then((result) => {
           if (searchSequence.current === requestId) {
             setLocations(result)
+            setSearchedQuery(normalized)
             setError(null)
           }
         })
@@ -73,6 +75,7 @@ export function AdminLiveWeatherPanel({
             !(caught instanceof DOMException && caught.name === 'AbortError')
           ) {
             setLocations([])
+            setSearchedQuery(null)
             setError('Location search could not be completed.')
           }
         })
@@ -111,6 +114,10 @@ export function AdminLiveWeatherPanel({
         displayLabel: displayLabel(selected),
       }))
     } catch (caught: unknown) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        logout()
+        return
+      }
       setError(
         caught instanceof ApiError && caught.status === 403
           ? 'You are not authorized to preview live weather.'
@@ -130,6 +137,10 @@ export function AdminLiveWeatherPanel({
       onSaved(result)
       setPreview(null)
     } catch (caught: unknown) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        logout()
+        return
+      }
       setError(
         caught instanceof ApiError && caught.status === 403
           ? 'You are not authorized to save weather records.'
@@ -161,6 +172,7 @@ export function AdminLiveWeatherPanel({
           setSelected(null)
           setPreview(null)
           setLocations([])
+          setSearchedQuery(null)
           setIsSearching(false)
         }}
         autoComplete="off"
@@ -179,6 +191,14 @@ export function AdminLiveWeatherPanel({
             </button>
           ))}
         </div>
+      ) : null}
+      {!isSearching &&
+      !error &&
+      searchedQuery !== null &&
+      locations.length === 0 ? (
+        <p className="admin-live-search-state" role="status">
+          No locations found. Try a different search.
+        </p>
       ) : null}
       <button
         type="button"

@@ -882,4 +882,108 @@ describe('AdminWeatherPage', () => {
       input.toString().endsWith('/api/admin/weather/live/save'),
     )).toHaveLength(1)
   })
+
+  it('shows a clear empty state when location search has no matches', async () => {
+    const { user } = await enterWeather((input, init) => {
+      if (input.toString().endsWith('/api/auth/login')) {
+        return json(authentication)
+      }
+      if (input.toString().includes('/api/weather/external/locations?')) {
+        return json([])
+      }
+      return successfulFetch(input, init)
+    })
+
+    await user.type(screen.getByLabelText('Location'), 'NoSuchPlace')
+
+    const emptyMessage = await screen.findByText(
+      'No locations found. Try a different search.',
+    )
+    expect(emptyMessage).toHaveAttribute('role', 'status')
+  })
+
+  it('logs out when live preview returns 401', async () => {
+    const location = {
+      providerLocationId: 43,
+      name: 'İzmir',
+      region: 'Izmir',
+      country: 'Türkiye',
+      latitude: 38.423734,
+      longitude: 27.142826,
+      displayLabel: 'İzmir, Izmir, Türkiye',
+    }
+    const { user } = await enterWeather((input, init) => {
+      const url = input.toString()
+      if (url.endsWith('/api/auth/login')) return json(authentication)
+      if (url.includes('/api/weather/external/locations?')) {
+        return json([location])
+      }
+      if (url.endsWith('/api/admin/weather/live/preview')) {
+        return json({ status: 401 }, 401)
+      }
+      return successfulFetch(input, init)
+    })
+
+    await user.type(screen.getByLabelText('Location'), 'İzmir')
+    await user.click(await screen.findByRole('option', {
+      name: location.displayLabel,
+    }))
+    await user.click(screen.getByRole('button', {
+      name: 'Preview live weather',
+    }))
+
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('logs out when live preview save returns 401', async () => {
+    const location = {
+      providerLocationId: 43,
+      name: 'İzmir',
+      region: 'Izmir',
+      country: 'Türkiye',
+      latitude: 38.423734,
+      longitude: 27.142826,
+      displayLabel: 'İzmir, Izmir, Türkiye',
+    }
+    const preview = {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      cityName: location.name,
+      displayLabel: location.displayLabel,
+      weatherDate: '2026-07-24',
+      temperature: 28.5,
+      mainStatus: 'Sunny',
+    }
+    const { user } = await enterWeather((input, init) => {
+      const url = input.toString()
+      if (url.endsWith('/api/auth/login')) return json(authentication)
+      if (url.includes('/api/weather/external/locations?')) {
+        return json([location])
+      }
+      if (url.endsWith('/api/admin/weather/live/preview')) {
+        return json(preview)
+      }
+      if (url.endsWith('/api/admin/weather/live/save')) {
+        return json({ status: 401 }, 401)
+      }
+      return successfulFetch(input, init)
+    })
+
+    await user.type(screen.getByLabelText('Location'), 'İzmir')
+    await user.click(await screen.findByRole('option', {
+      name: location.displayLabel,
+    }))
+    await user.click(screen.getByRole('button', {
+      name: 'Preview live weather',
+    }))
+    await user.click(await screen.findByRole('button', {
+      name: 'Save preview to Today',
+    }))
+
+    expect(
+      await screen.findByRole('heading', { name: /sign in to your account/i }),
+    ).toBeInTheDocument()
+  })
 })
