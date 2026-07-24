@@ -5,6 +5,8 @@ import {
   deleteAdminWeather,
   getAdminWeather,
   getAdminWeatherById,
+  previewAdminLiveWeather,
+  saveAdminLiveWeather,
 } from './adminWeatherApi'
 
 const apiBaseUrl = 'https://localhost:7257'
@@ -109,6 +111,51 @@ describe('admin weather API', () => {
       `${apiBaseUrl}/api/admin/weather/4`,
     )
     expect(fetchMock.mock.calls[0][1]?.method).toBe('DELETE')
+  })
+
+  it('previews by coordinates and explicitly saves the returned preview', async () => {
+    const preview = {
+      latitude: 38.423734,
+      longitude: 27.142826,
+      cityName: 'İzmir',
+      displayLabel: 'İzmir, Türkiye',
+      weatherDate: '2026-07-24',
+      temperature: 28.5,
+      mainStatus: 'Sunny',
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(preview), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({
+          inserted: true,
+          weather: weather({
+            weatherDate: preview.weatherDate,
+            cityName: preview.cityName,
+            temperature: preview.temperature,
+            mainStatus: preview.mainStatus,
+          }),
+        }), { status: 200 }),
+      )
+
+    await expect(previewAdminLiveWeather(client(), {
+      latitude: preview.latitude,
+      longitude: preview.longitude,
+      cityName: preview.cityName,
+      displayLabel: preview.displayLabel,
+    })).resolves.toEqual(preview)
+    await expect(saveAdminLiveWeather(client(), preview)).resolves.toMatchObject({
+      inserted: true,
+    })
+
+    expect(fetchMock.mock.calls[0][0].toString()).toBe(
+      `${apiBaseUrl}/api/admin/weather/live/preview`,
+    )
+    expect(fetchMock.mock.calls[1][0].toString()).toBe(
+      `${apiBaseUrl}/api/admin/weather/live/save`,
+    )
+    expect(fetchMock.mock.calls[1][1]?.body).toBe(JSON.stringify(preview))
   })
 
   it.each([

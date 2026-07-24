@@ -323,6 +323,11 @@ public sealed class UserWeatherServiceTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
+        public Task<(WeatherInfo Weather, bool Inserted)> UpsertAsync(
+            WeatherInfo weatherInfo,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public void Remove(WeatherInfo weatherInfo) =>
             throw new NotSupportedException();
 

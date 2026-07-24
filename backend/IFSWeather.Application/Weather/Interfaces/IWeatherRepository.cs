@@ -39,6 +39,10 @@ public interface IWeatherRepository
         WeatherInfo weatherInfo,
         CancellationToken cancellationToken = default);
 
+    Task<(WeatherInfo Weather, bool Inserted)> UpsertAsync(
+        WeatherInfo weatherInfo,
+        CancellationToken cancellationToken = default);
+
     void Remove(WeatherInfo weatherInfo);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
