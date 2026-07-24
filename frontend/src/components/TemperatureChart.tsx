@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import type { CurrentWeather } from '../api/weatherApi'
 
 interface TemperatureChartProps {
@@ -23,6 +24,9 @@ function formatTemperature(value: number) {
 }
 
 export function TemperatureChart({ items }: TemperatureChartProps) {
+  const titleId = useId()
+  const descriptionId = useId()
+  const scrollHintId = useId()
   const orderedItems = [...items].sort((left, right) =>
     left.weatherDate.localeCompare(right.weatherDate),
   )
@@ -56,48 +60,60 @@ export function TemperatureChart({ items }: TemperatureChartProps) {
 
   return (
     <div className="temperature-chart">
-      <svg
-        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-        role="img"
-        aria-labelledby="temperature-chart-title temperature-chart-description"
+      <p className="chart-scroll-hint" id={scrollHintId}>
+        The chart can be scrolled horizontally on smaller screens.
+      </p>
+      <div
+        className="chart-scroll-region"
+        role="region"
+        aria-label="Scrollable weekly temperature chart"
+        aria-describedby={scrollHintId}
+        tabIndex={0}
       >
-        <title id="temperature-chart-title">Weekly temperature trend</title>
-        <desc id="temperature-chart-description">
-          A line chart of the recorded temperatures listed below.
-        </desc>
-        <line
-          className="chart-axis"
-          x1={horizontalPadding}
-          y1={chartHeight - verticalPadding}
-          x2={chartWidth - horizontalPadding}
-          y2={chartHeight - verticalPadding}
-        />
-        <path className="chart-line" d={path} />
-        {points.map(({ item, x, y }) => (
-          <g key={`${item.weatherDate}-${item.weatherId}`}>
-            <circle className="chart-point" cx={x} cy={y} r="6" />
-            <text className="chart-value" x={x} y={y - 14} textAnchor="middle">
-              {formatTemperature(item.temperature)}
-            </text>
-            <text
-              className="chart-label"
-              x={x}
-              y={chartHeight - 10}
-              textAnchor="middle"
-            >
-              {formatShortDate(item.weatherDate)}
-            </text>
-          </g>
-        ))}
-      </svg>
+        <svg
+          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+          role="img"
+          aria-labelledby={`${titleId} ${descriptionId}`}
+        >
+          <title id={titleId}>Weekly temperature trend</title>
+          <desc id={descriptionId}>
+            A line chart of the recorded temperatures in degrees Celsius,
+            listed in detail below.
+          </desc>
+          <line
+            className="chart-axis"
+            x1={horizontalPadding}
+            y1={chartHeight - verticalPadding}
+            x2={chartWidth - horizontalPadding}
+            y2={chartHeight - verticalPadding}
+          />
+          <path className="chart-line" d={path} />
+          {points.map(({ item, x, y }) => (
+            <g key={`${item.weatherDate}-${item.weatherId}`}>
+              <circle className="chart-point" cx={x} cy={y} r="6" />
+              <text className="chart-value" x={x} y={y - 14} textAnchor="middle">
+                {formatTemperature(item.temperature)}°
+              </text>
+              <text
+                className="chart-label"
+                x={x}
+                y={chartHeight - 10}
+                textAnchor="middle"
+              >
+                {formatShortDate(item.weatherDate)}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
       <ol className="forecast-list" aria-label="Daily forecast values">
         {orderedItems.map((item) => (
           <li key={item.weatherId}>
             <time dateTime={item.weatherDate}>
               {formatShortDate(item.weatherDate)}
             </time>
-            <strong>{formatTemperature(item.temperature)}</strong>
-            <span>{item.mainStatus}</span>
+            <strong>{formatTemperature(item.temperature)} °C</strong>
+            <span className="forecast-condition">{item.mainStatus}</span>
           </li>
         ))}
       </ol>

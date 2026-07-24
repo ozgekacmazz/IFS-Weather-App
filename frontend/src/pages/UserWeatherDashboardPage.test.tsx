@@ -110,7 +110,12 @@ describe('UserWeatherDashboardPage', () => {
     const { fetchMock } = await enterDashboard(successfulDashboardFetch)
 
     expect(await screen.findByRole('heading', { name: 'Istanbul' })).toBeInTheDocument()
-    expect(screen.getByText(/24[.,]5/)).toBeInTheDocument()
+    expect(document.querySelector('.current-temperature'))
+      .toHaveTextContent(/24[.,]5°C/)
+    expect(screen.getByText(/last updated/i)).toBeInTheDocument()
+    expect(
+      document.querySelector('time[datetime="2026-07-23T08:00:00Z"]'),
+    ).toBeInTheDocument()
     expect(screen.getAllByText('Partly cloudy')).not.toHaveLength(0)
     expect(
       screen.getByRole('img', { name: /weekly temperature trend/i }),
@@ -155,6 +160,39 @@ describe('UserWeatherDashboardPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('keeps stable current and forecast placeholders while weather loads', async () => {
+    let resolveCurrent: ((response: Response) => void) | undefined
+    let resolveForecast: ((response: Response) => void) | undefined
+    await enterDashboard((input, init) => {
+      const url = input.toString()
+      if (url.endsWith('/api/weather/today')) {
+        return new Promise<Response>((resolve) => {
+          resolveCurrent = resolve
+        })
+      }
+      if (url.endsWith('/api/weather/forecast')) {
+        return new Promise<Response>((resolve) => {
+          resolveForecast = resolve
+        })
+      }
+      return successfulDashboardFetch(input, init)
+    })
+
+    expect(
+      await screen.findByRole('status', { name: 'Loading current weather' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('status', { name: 'Loading weekly forecast' }),
+    ).toBeInTheDocument()
+
+    resolveCurrent?.(new Response(JSON.stringify(current()), { status: 200 }))
+    resolveForecast?.(new Response(JSON.stringify(forecast()), { status: 200 }))
+    await waitFor(() => {
+      expect(document.querySelector('.current-temperature'))
+        .toHaveTextContent(/24[.,]5°C/)
+    })
+  })
+
   it('distinguishes an empty weekly forecast from a request failure', async () => {
     await enterDashboard((input, init) => {
       const url = input.toString()
@@ -168,6 +206,9 @@ describe('UserWeatherDashboardPage', () => {
 
     expect(
       await screen.findByText(/no forecast records are available/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('No weekly forecast saved').closest('[role="status"]'),
     ).toBeInTheDocument()
   })
 
@@ -185,6 +226,8 @@ describe('UserWeatherDashboardPage', () => {
     expect(
       await screen.findByText(/weather information is temporarily unavailable/i),
     ).toBeInTheDocument()
+    expect(screen.getByText('Current weather unavailable').closest('[role="alert"]'))
+      .toBeInTheDocument()
     expect(screen.queryByText('not-a-number')).not.toBeInTheDocument()
   })
 
@@ -453,10 +496,48 @@ describe('UserWeatherDashboardPage', () => {
     expect(
       await screen.findByText(/no current weather record is available/i),
     ).toBeInTheDocument()
+    expect(screen.getByText('No weather saved for today').closest('[role="status"]'))
+      .toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Retry' }))
 
     expect(await screen.findByText(/24[.,]5/)).toBeInTheDocument()
     expect(currentRequests).toBe(2)
+  })
+
+  it('refreshes only weather data without reloading the profile', async () => {
+    let currentRequests = 0
+    let forecastRequests = 0
+    const { fetchMock, user } = await enterDashboard((input, init) => {
+      const url = input.toString()
+      if (url.endsWith('/api/weather/today')) {
+        currentRequests += 1
+        return jsonResponse(current())
+      }
+      if (url.endsWith('/api/weather/forecast')) {
+        forecastRequests += 1
+        return jsonResponse(forecast())
+      }
+      return successfulDashboardFetch(input, init)
+    })
+
+    await waitFor(() => {
+      expect(document.querySelector('.current-temperature'))
+        .toHaveTextContent(/24[.,]5°C/)
+    })
+    await user.click(screen.getByRole('button', { name: 'Refresh weather' }))
+
+    expect(
+      await screen.findByText('Weather information refreshed.'),
+    ).toBeInTheDocument()
+    expect(currentRequests).toBe(2)
+    expect(forecastRequests).toBe(2)
+    expect(
+      fetchMock.mock.calls.filter(
+        ([input, options]) =>
+          input.toString().endsWith('/api/profile') &&
+          options?.method !== 'PUT',
+      ),
+    ).toHaveLength(1)
   })
 
   it('can unmount safely while the profile request is pending', async () => {
