@@ -1035,6 +1035,15 @@ button:focus-visible {
   margin: 0;
 }
 
+.admin-live-search-state {
+  margin: 0.75rem 0;
+  padding: 0.8rem 1rem;
+  color: #52697b;
+  border: 1px solid #d8e6e8;
+  border-radius: 10px;
+  background: #f4f8f9;
+}
+
 .admin-weather-success {
   margin: 1rem 0 0;
 }
